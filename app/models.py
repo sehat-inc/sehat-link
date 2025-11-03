@@ -1,6 +1,6 @@
-from pydantic import BaseModel, EmailStr
 from typing import Optional
 from datetime import datetime, date
+from pydantic import BaseModel, EmailStr, Field
 
 
 class Hospital(BaseModel):
@@ -22,6 +22,7 @@ class Doctor(BaseModel):
     experience_years: Optional[int]
     city: Optional[str]
     hospital_id: Optional[int]
+    clinic_address: Optional[str] 
 
 
 class Patient(BaseModel):
@@ -42,3 +43,24 @@ class Appointment(BaseModel):
     appointment_time: datetime
     status: Optional[str]
     notes: Optional[str]
+
+
+class NewHospitalDetails(BaseModel):
+    name: str
+    address: str
+    city: str
+    contact_no: Optional[str]
+
+
+class DoctorSignUpPayload(BaseModel):
+    name: str
+    licence_no: str
+    email: EmailStr
+    password: str 
+    specialization: Optional[str]
+    affiliation_type: str
+    experience_years: Optional[int]
+    city: str
+    existing_hospital_id: Optional[int] = None
+    new_hospital_details: Optional[NewHospitalDetails] = None
+    clinic_address: Optional[str] = None

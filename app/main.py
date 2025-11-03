@@ -3,9 +3,9 @@ from fastapi import (
     Request,
     status
     )
-from routers import doctor, patient
+from routers import doctor, patient, hospital
 
-from api.mcp.server import mcp_app 
+# from api.mcp.server import mcp_app 
 
 app = FastAPI()
 
@@ -17,19 +17,20 @@ def read_root():
 
 app.include_router(doctor.router)
 app.include_router(patient.router)
+app.include_router(hospital.router)
 
 
 #NOTE: This is where we merge both MCP and FastAPI app
 
 
 
-combined_app = FastAPI(
-    routes=[
-        *mcp_app.routes,
-        *app.routes,
-    ],
-    lifespan=mcp_app.lifespan
-)
+# combined_app = FastAPI(
+#     routes=[
+#         *mcp_app.routes,
+#         *app.routes,
+#     ],
+#     lifespan=mcp_app.lifespan
+# )
 
 
 
