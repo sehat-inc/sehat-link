@@ -1,22 +1,22 @@
-from sqlmodel import Session, select
-from database import engine
-from models import Patient
+from fastapi import APIRouter, HTTPException
+from database import supabase
 from auth import hash_password
-from fastapi import APIRouter, Depends, HTTPException
+from models import Patient
 
 router = APIRouter(prefix="/patient", tags=["Patient"])
 
-def get_session():
-    with Session(engine) as session:
-        yield session
-
 @router.post("/signup")
-def signup(patient: Patient, session: Session = Depends(get_session)):
-    existing = session.exec(select(Patient).filter(Patient.email == patient.email)).first()
-    if existing:
+def signup(patient: Patient):
+    existing = supabase.table("patients").select("*").eq("email", patient.email).execute()
+    if existing.data:
         raise HTTPException(status_code=400, detail="Email already registered")
-    patient.password_hash = hash_password(patient.password_hash)
-    session.add(patient)
-    session.commit()
-    session.refresh(patient)
-    return {"id": patient.id, "email": patient.email}
+
+    data = patient.model_dump()
+    data["password_hash"] = hash_password(data["password_hash"])
+
+    # Convert date fields to ISO string
+    if data.get("dob"):
+        data["dob"] = data["dob"].isoformat()
+
+    response = supabase.table("patients").insert(data).execute()
+    return response

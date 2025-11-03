@@ -1,42 +1,44 @@
-from typing import Optional, List
+from pydantic import BaseModel, EmailStr
+from typing import Optional
 from datetime import datetime, date
-from sqlmodel import SQLModel, Field, Relationship
 
-class Hospital(SQLModel, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
+
+class Hospital(BaseModel):
+    id: Optional[int]
     name: str
-    address: Optional[str] = None
-    city: Optional[str] = None
-    contact_no: Optional[str] = None
-    doctors: List["Doctor"] = Relationship(back_populates="hospital")
+    address: Optional[str]
+    city: Optional[str]
+    contact_no: Optional[str]
 
-class Doctor(SQLModel, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
+
+class Doctor(BaseModel):
+    id: Optional[int]
     name: str
     licence_no: str
-    email: str
+    email: EmailStr
     password_hash: str
-    specialization: Optional[str] = None
-    affiliation_type: Optional[str] = None
-    experience_years: Optional[int] = None
-    city: Optional[str] = None
-    hospital_id: Optional[int] = Field(default=None, foreign_key="hospital.id")
-    hospital: Optional[Hospital] = Relationship(back_populates="doctors")
+    specialization: Optional[str]
+    affiliation_type: Optional[str]
+    experience_years: Optional[int]
+    city: Optional[str]
+    hospital_id: Optional[int]
 
-class Patient(SQLModel, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
+
+class Patient(BaseModel):
+    id: Optional[int]
     name: str
-    phone_no: Optional[str] = None
-    email: str
+    phone_no: Optional[str]
+    email: EmailStr
     password_hash: str
-    dob: Optional[date] = None
-    gender: Optional[str] = None
-    city: Optional[str] = None
+    dob: Optional[date]
+    gender: Optional[str]
+    city: Optional[str]
 
-class Appointment(SQLModel, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
-    doctor_id: int = Field(foreign_key="doctor.id")
-    patient_id: int = Field(foreign_key="patient.id")
+
+class Appointment(BaseModel):
+    id: Optional[int]
+    doctor_id: int
+    patient_id: int
     appointment_time: datetime
-    status: Optional[str] = None
-    notes: Optional[str] = None
+    status: Optional[str]
+    notes: Optional[str]

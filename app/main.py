@@ -3,14 +3,12 @@ from fastapi import (
     Request,
     status
     )
-from database import init_db
 from routers import doctor, patient
 
 from api.mcp.server import mcp_app 
 
 app = FastAPI()
 
-init_db()
 
 @app.get("/")
 def read_root():
