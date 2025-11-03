@@ -12,4 +12,6 @@ dependencies = [
     "passlib>=1.7.4",
     "sqlmodel>=0.0.27",
     "psycopg2-binary>=2.9.11",
+    "uvicorn[standard]>=0.38.0",
+    "fastapi>=0.121.0",
 ]
