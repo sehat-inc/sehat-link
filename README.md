@@ -5,6 +5,7 @@ An AI powered healthcare system
 ```
 # Activate your uv environment
 source .venv/bin/activate
+uv sync # Adds all dependencies
 
 # To run entire Project
 make all
