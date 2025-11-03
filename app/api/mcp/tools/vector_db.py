@@ -2,10 +2,9 @@ from fastmcp import Context
 from pinecone import PineconeAsyncio
 from typing import Annotated
 from pydantic import Field
-import asyncio
 import json
 
-from prompts.decompose import decompose_prompt
+from api.mcp.prompts.decompose import decompose_prompt
 
 
 class PineconeQuery():
@@ -13,7 +12,7 @@ class PineconeQuery():
         self.index_name = index_name
         self.pc = PineconeAsyncio(api_key=api_key)
 
-    async def _query_pinecone(self, query_text: str, top_k: int = 5, namespace: str = "") -> list[dict]:
+    async def _query_pinecone(self, query_text: str, top_k: int = 5, namespace: str = "__default__") -> list[dict]:
         """
         Query Pinecone and return results
 
@@ -51,7 +50,7 @@ class PineconeQuery():
         self,
         question: Annotated[str, Field(description="The question or query to answer")],
         top_k_per_query: Annotated[int, Field(description="Amount of chunks to retrieve per query", ge=1, le=10)] = 5,
-        namespace: Annotated[str , Field(description="Pinecone namespace to query")] = "",
+        namespace: Annotated[str , Field(description="Pinecone namespace to query")] = "__default__",
         decompose: Annotated[bool, Field(description="Whether to decompose the question into multiple queries")] = True,
         ctx: Context = None
     ) -> dict:
@@ -148,7 +147,7 @@ class PineconeQuery():
         self,
         query: Annotated[str, Field(description="Search query")],
         top_k: Annotated[int, Field(description="Number of results", ge=1, le=15)] = 5,
-        namespace: Annotated[str, Field(description="Pinecone namespace")] = "",
+        namespace: Annotated[str, Field(description="Pinecone namespace")] = "__default__",
         filter_metadata: Annotated[dict | None, Field(description="Metadata filter")] = None,
         ctx: Context = None
     ) -> list[dict]:
@@ -169,11 +168,4 @@ class PineconeQuery():
                 "text": r["text"]
             }
             for r in results
-        ] 
-
-
-
-
-
-
-
+        ]
