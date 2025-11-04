@@ -6,12 +6,8 @@ from fastapi import (
     )
 from app.routers import doctor, patient, hospital
 
-from api.mcp.server import mcp_app 
-
-app = FastAPI()
-
-from api.mcp.server import mcp_app
-from api.mcp.client import test_agent
+from app.api.mcp.server import mcp_app
+from app.api.mcp.client import test_agent
 
 app = FastAPI()
 
