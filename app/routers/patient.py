@@ -1,6 +1,6 @@
-from auth import hash_password
-from database import supabase
-from models import Patient
+from app.auth import hash_password
+from app.database import supabase
+from app.models import Patient
 from fastapi import APIRouter, HTTPException
 
 router = APIRouter(prefix="/patient", tags=["Patient"])

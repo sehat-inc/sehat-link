@@ -1,4 +1,4 @@
-from database import supabase
+from app.database import supabase
 from fastapi import APIRouter, HTTPException
 
 router = APIRouter(prefix="/hospitals", tags=["Hospitals"])
