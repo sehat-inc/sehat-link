@@ -4,7 +4,7 @@ from fastapi import (
     WebSocket,
     status
     )
-from routers import doctor, patient, hospital
+from app.routers import doctor, patient, hospital
 
 from api.mcp.server import mcp_app 
 

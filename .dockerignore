@@ -16,3 +16,6 @@ frontend/
 .vscode
 .idea
 
+# env vars
+.env
+
