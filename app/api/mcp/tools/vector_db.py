@@ -4,7 +4,7 @@ from typing import Annotated
 from pydantic import Field
 import json
 
-from api.mcp.prompts.decompose import decompose_prompt
+from app.api.mcp.prompts.decompose import decompose_prompt
 
 
 class PineconeQuery():

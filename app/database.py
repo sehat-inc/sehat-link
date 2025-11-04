@@ -4,7 +4,12 @@ from supabase import create_client, Client
 
 load_dotenv()
 
-url: str = os.environ.get("SUPABASE_URL")
-key: str = os.environ.get("SUPABASE_KEY")
+supabase: Client | None = None
 
-supabase: Client = create_client(url, key)
+def get_supabase():
+    global supabase
+    if supabase is None:
+        url = os.getenv("SUPABASE_URL")
+        key = os.getenv("SUPABASE_KEY")
+        supabase = create_client(url, key)
+    return supabase

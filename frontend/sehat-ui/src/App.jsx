@@ -6,7 +6,7 @@ function App() {
   const [input, setInput] = useState("");
 
   useEffect(() => {
-    const ws = new WebSocket("ws://localhost:8000/ws/chat");
+    const ws = new WebSocket("ws://localhost:8080/ws/chat");
     ws.onmessage = (e) => {
       setMessages(prev => [...prev, { from: "agent", text: e.data }]);
     };

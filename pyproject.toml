@@ -17,4 +17,5 @@ dependencies = [
     "supabase>=2.23.2",
     "langgraph>=1.0.2",
     "langchain>=1.0.3",
+    "pinecone[asyncio]>=7.3.0",
 ]

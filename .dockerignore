@@ -1,0 +1,21 @@
+# python
+__pycache__
+*.pyc
+
+# uv cache
+.venv
+
+# frontend not included in backend container
+frontend/
+
+# git
+.git
+.gitignore
+
+# editor / ide
+.vscode
+.idea
+
+# env vars
+.env
+
