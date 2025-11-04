@@ -1,5 +1,5 @@
 from app.auth import hash_password
-from app.database import supabase
+from app.database import get_supabase 
 from app.models import Patient
 from fastapi import APIRouter, HTTPException
 
@@ -7,6 +7,7 @@ router = APIRouter(prefix="/patient", tags=["Patient"])
 
 @router.post("/signup")
 def signup(patient: Patient):
+    supabase = get_supabase()
     existing = supabase.table("patients").select("*").eq("email", patient.email).execute()
     if existing.data:
         raise HTTPException(status_code=400, detail="Email already registered")
