@@ -1,4 +1,4 @@
-from database import supabase
+from app.database import get_supabase 
 from fastapi import APIRouter, HTTPException
 
 router = APIRouter(prefix="/hospitals", tags=["Hospitals"])
@@ -6,6 +6,7 @@ router = APIRouter(prefix="/hospitals", tags=["Hospitals"])
 @router.get("/list")
 def get_hospitals_list():
     try:
+        supabase = get_supabase()
         response = supabase.table("hospitals").select("id, name").execute()
         return response.data
     except Exception as e:

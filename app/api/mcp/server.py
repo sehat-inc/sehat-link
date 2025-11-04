@@ -2,7 +2,7 @@ from fastmcp import FastMCP
 from dotenv import load_dotenv
 import os
 
-from api.mcp.tools.vector_db import PineconeQuery
+from app.api.mcp.tools.vector_db import PineconeQuery
 
 load_dotenv()
 
