@@ -1,7 +1,10 @@
 import asyncio
 from fastmcp import Client
+from fastmcp.client.transports import StreamableHttpTransport
 
-client = Client("http://localhost:8080/mcp")
+
+transport = StreamableHttpTransport(url="http://localhost:8080/mcp")
+client = Client(transport)
 
 async def test_agent(user_message: str):
     """
