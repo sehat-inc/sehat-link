@@ -1,7 +1,8 @@
 from fastmcp import Context
-from pinecone import PineconeAsyncio
-from typing import Annotated
+from pinecone import Pinecone, SearchQuery
+from typing import Annotated, Optional, Dict
 from pydantic import Field
+from mcp.types import ImageContent, AudioContent, TextContent
 import json
 
 from app.api.mcp.prompts.decompose import decompose_prompt
@@ -10,9 +11,9 @@ from app.api.mcp.prompts.decompose import decompose_prompt
 class PineconeQuery():
     def __init__(self, api_key: str, index_name: str):
         self.index_name = index_name
-        self.pc = PineconeAsyncio(api_key=api_key)
+        self.pc = Pinecone(api_key=api_key)
 
-    async def _query_pinecone(self, query_text: str, top_k: int = 5, namespace: str = "__default__") -> list[dict]:
+    async def _query_pinecone(self, query_text: str, top_k: int = 5, namespace: str = "__default__", filter: Optional[Dict] = None) -> list[dict]:
         """
         Query Pinecone and return results
 
@@ -25,13 +26,14 @@ class PineconeQuery():
             List of matches with metadata
         """
 
-        async with self.pc.Index(self.index_name) as index:
-            results = index.search(
+        async with self.pc.IndexAsyncio(self.index_name) as index:
+            results = await index.search_records(
                 namespace=namespace,
-                query={
-                    "inputs": {"text": query_text},
-                    "top_k":top_k
-                }
+                query=SearchQuery(
+                    inputs={"text": query_text},
+                    top_k=top_k,
+                    filter=filter,
+                )
             )
 
         hits = results["result"]["hits"]
@@ -48,11 +50,11 @@ class PineconeQuery():
 
     async def smart_query(
         self,
+        ctx: Context,
         question: Annotated[str, Field(description="The question or query to answer")],
         top_k_per_query: Annotated[int, Field(description="Amount of chunks to retrieve per query", ge=1, le=10)] = 5,
         namespace: Annotated[str , Field(description="Pinecone namespace to query")] = "__default__",
         decompose: Annotated[bool, Field(description="Whether to decompose the question into multiple queries")] = True,
-        ctx: Context = None
     ) -> dict:
 
         if ctx:
@@ -76,22 +78,24 @@ class PineconeQuery():
         if ctx:
             await ctx.info(f"Decomposing questions into sub-queries")
 
-        try:
-            if ctx:
-                decomposition_prompt = decompose_prompt(question)
-                decomposition_response = await ctx.sample(decomposition_prompt)
-                decomposition_text = decomposition_response.text.strip()
+        try: 
+            decomposition_prompt = decompose_prompt(question)
+            decomposition_response = await ctx.sample(decomposition_prompt, model_preferences="gemini-2.5-flash")
+            if isinstance(decomposition_response, (ImageContent, AudioContent)):
+                await ctx.error("Decomposition model returned non-text content.")
+                return {"error": "Decomposition model returned non-text content."}
+            decomposition_text = decomposition_response.text.strip()
 
-                # Extract JSON from response (handle markdown code blocks)
-                if "```json" in decomposition_text:
-                    decomposition_text = decomposition_text.split("```json")[1].split("```")[0].strip()
-                elif "```" in decomposition_text:
-                    decomposition_text = decomposition_text.split("```")[1].split("```")[0].strip()
+            # Extract JSON from response (handle markdown code blocks)
+            if "```json" in decomposition_text:
+                decomposition_text = decomposition_text.split("```json")[1].split("```")[0].strip()
+            elif "```" in decomposition_text:
+                decomposition_text = decomposition_text.split("```")[1].split("```")[0].strip()
                 
-                sub_queries = json.loads(decomposition_text)
+            sub_queries = json.loads(decomposition_text)
 
-                if ctx:
-                    await ctx.info(f"Decomposed into {len(sub_queries)} queries")
+            if ctx:
+                await ctx.info(f"Decomposed into {len(sub_queries)} queries")
 
         except Exception as e:
             if ctx:
@@ -145,11 +149,11 @@ class PineconeQuery():
 
     async def direct_query(
         self,
+        ctx: Context,
         query: Annotated[str, Field(description="Search query")],
         top_k: Annotated[int, Field(description="Number of results", ge=1, le=15)] = 5,
         namespace: Annotated[str, Field(description="Pinecone namespace")] = "__default__",
         filter_metadata: Annotated[dict | None, Field(description="Metadata filter")] = None,
-        ctx: Context = None
     ) -> list[dict]:
         """
         Direct, simple query to Pinecone without any decomposition.
@@ -158,7 +162,7 @@ class PineconeQuery():
         if ctx:
             await ctx.info(f"Direct query: {query}")
         
-        results = await self._query_pinecone(query, top_k, namespace)
+        results = await self._query_pinecone(query, top_k, namespace, filter_metadata)
 
         return [
             {
