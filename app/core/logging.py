@@ -56,8 +56,6 @@ class JsonlFileHandler(logging.Handler):
                 "line": record.lineno,
                 "environment": settings.ENVIRONMENT.value,
             }
-            if hasattr(record, "extra"):
-                log_entry.update(record.extra)
 
             with open(self.file_path, "a", encoding="utf-8") as f:
                 f.write(json.dumps(log_entry) + "\n")
