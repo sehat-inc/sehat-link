@@ -26,7 +26,7 @@ async def chat_socket(socket: WebSocket):
     await socket.accept()
     while True:
         user_msg = await socket.receive_text()
-        result = await test_agent(user_msg)
+        # -- Add Wrappen Function --
         await socket.send_text(result)
 
 

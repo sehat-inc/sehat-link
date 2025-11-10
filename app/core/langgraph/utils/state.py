@@ -18,9 +18,12 @@ class MedicalAgentState(TypedDict):
     user_age: Optional[int]
     user_gender: Optional[str]
     user_location: Dict[str, str]
+    user_domicile_location: Optional[Dict[str, str]]
     user_phone: Optional[str]
+    # This is different from detected_language as this is
+    # populated at the session end where LLM infers communication preference
     preferred_language: str
-    
+
     # Medical History (from FastAPI/Supabase)
     chronic_conditions: List[str]
     allergies: List[str]
