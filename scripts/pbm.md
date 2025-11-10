@@ -1,6 +1,5 @@
 ## Pakistan Bait ul Maal document
 
-
 ### Individual Financial Assistance (Medical)
 
 Through Individual Financial Assistance (Medical), PBM supports the poor, widows, destitute women, orphans, and disabled persons for treatment of major illnesses. PBM provides help for cancer, heart disease, hepatitis, tuberculosis, vital organ surgeries, and kidney dialysis based on hospital recommendations.
