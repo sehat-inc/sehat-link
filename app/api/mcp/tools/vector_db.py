@@ -5,7 +5,7 @@ from pydantic import Field
 from mcp.types import ImageContent, AudioContent, TextContent
 import json
 
-from app.api.mcp.prompts.decompose import decompose_prompt
+from api.mcp.prompts.decompose import decompose_prompt
 
 
 class PineconeQuery():

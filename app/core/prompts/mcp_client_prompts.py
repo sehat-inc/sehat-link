@@ -1,4 +1,4 @@
-from langgraph.utils.state import MedicalAgentState
+from core.langgraph.utils.state import MedicalAgentState
 
 
 def triage_agent_prompt(state: MedicalAgentState, similar_context: str):

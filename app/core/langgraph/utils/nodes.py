@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 import json
 import os
 
-from utils.state import MedicalAgentState
+from core.langgraph.utils.state import MedicalAgentState
 from core.prompts.mcp_client_prompts import (
     language_detector_prompt,
     triage_agent_prompt,

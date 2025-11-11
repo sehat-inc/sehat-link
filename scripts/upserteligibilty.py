@@ -14,6 +14,9 @@ NAMESPACE = "eligibility-agent"
 BATCH_SIZE = 10                        
 EMBED_MODEL = "text-embedding-3-large" 
 # ----------------------------
+# Initialize Pinecone client
+pc = Pinecone(api_key=os.getenv("PINECONE_API"))
+index = pc.Index(host="sehat-link-programs")
 
 # initialize clients
 openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))

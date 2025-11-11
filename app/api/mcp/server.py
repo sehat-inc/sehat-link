@@ -2,7 +2,7 @@ from fastmcp import FastMCP
 from dotenv import load_dotenv
 import os
 
-from app.api.mcp.tools.vector_db import PineconeQuery
+from api.mcp.tools.vector_db import PineconeQuery
 
 load_dotenv()
 
@@ -11,7 +11,7 @@ PC_INDEX_NAME = os.getenv("PC_INDEX_NAME")
 
 mcp = FastMCP("sehat-link")
 
-pc_ctx_tool = PineconeQuery(PINECONE_API, PC_INDEX_NAME)
+pc_ctx_tool = PineconeQuery(str(PINECONE_API), str(PC_INDEX_NAME))
 
 mcp.tool(
     pc_ctx_tool.smart_query,
