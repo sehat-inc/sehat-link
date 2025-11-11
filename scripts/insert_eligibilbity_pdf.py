@@ -7,10 +7,10 @@ from pypdf import PdfReader
 
 load_dotenv()
 
-PDF_FILE = "Empanelled_Hospital_List.pdf"
-INDEX_NAME = "sehat-link-programs"
-NAMESPACE = "eligibility-agent-v2"
-BATCH_SIZE = 10
+PDF_FILE = "data/Empanelled_Hospital_List.pdf"
+INDEX_NAME = "eligibilty-agent-index"     
+NAMESPACE = "eligibility-namespace"        
+BATCH_SIZE = 100                        
 EMBED_MODEL = "text-embedding-3-large"
 
 openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))

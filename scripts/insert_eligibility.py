@@ -1,5 +1,6 @@
 import os
 import re
+import uuid
 import itertools
 from openai import OpenAI
 from pinecone import Pinecone
@@ -7,11 +8,17 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+
+# Editable metadata fields
+PROGRAM_NAME = "Pakistan Bait-ul-Maal"
+DOCUMENT_TYPE = "Pakistan Bait-ul-Maal Program Info"
+
+
 # ---------- CONFIG ----------
 MD_FILE = "data/pbm.md"                     
-INDEX_NAME = "sehat-link-programs"     
-NAMESPACE = "eligibility-agent-v2"        
-BATCH_SIZE = 10                        
+INDEX_NAME = "eligibilty-agent-index"     
+NAMESPACE = "eligibility-namespace"        
+BATCH_SIZE = 100                        
 EMBED_MODEL = "text-embedding-3-large" 
 # ----------------------------
 
@@ -82,7 +89,7 @@ print(f"✅ Found {len(sections)} chunks.")
 # Generate embeddings and upsert in batches
 for i, batch in enumerate(chunks(sections, BATCH_SIZE)):
     texts = [s["text"] for s in batch]
-    ids = [f"chunk-{i}-{j}" for j in range(len(batch))]
+    ids = ids = [f"{PROGRAM_NAME.lower().replace(' ', '_')}-{uuid.uuid4().hex[:8]}" for _ in batch]
     embeddings = embed_texts(texts)
 
     vectors = [
@@ -91,8 +98,8 @@ for i, batch in enumerate(chunks(sections, BATCH_SIZE)):
             "values": emb,
             "metadata": {
                 "title": s["title"],
-                "program": "Pakistan Bait ul Maal",
-                "type": "Pakistan Bait ul Maal Program Info",
+                "program": PROGRAM_NAME,
+                "type": DOCUMENT_TYPE,
                 "text": s["text"]
             }
         }
