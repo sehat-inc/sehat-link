@@ -11,15 +11,15 @@ from langchain_text_splitters import CharacterTextSplitter
 load_dotenv()
 
 # ---------- CONFIG ----------
-INDEX_NAME = "sehat-link-programs"
-NAMESPACE = "medical-kb"
-BATCH_SIZE = 10
+INDEX_NAME = "medical-kb"
+NAMESPACE = "medical-kb-namespace"
+BATCH_SIZE = 100
 EMBED_MODEL = "text-embedding-3-large"
 # ----------------------------
 
 # initialize clients
-openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-pc = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
+openai_client = OpenAI(api_key=OPENAI_API_KEY)
+pc = Pinecone(api_key=PINECONE_API_KEY)
 index = pc.Index(INDEX_NAME)
 
 def load_and_chunk_data():
