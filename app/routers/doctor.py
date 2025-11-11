@@ -1,6 +1,6 @@
-from auth import hash_password
-from database import get_supabase 
-from models import DoctorSignUpPayload, NewHospitalDetails
+from app.auth_utils import hash_password
+from app.database import get_supabase 
+from app.models import DoctorSignUpPayload, NewHospitalDetails
 from fastapi import APIRouter, HTTPException
 from typing import Dict, Any
 
