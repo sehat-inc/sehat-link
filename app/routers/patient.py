@@ -109,7 +109,7 @@ async def start_ai_chat_session(current_user_id: Annotated[str, Depends(get_curr
             "user_name": patient_data.get("name"),
             "user_age": patient_data.get("age"),
             "user_gender": patient_data.get("gender"),
-            "user_location": patient_data.get("location"),
+            "user_location": patient_data.get("city"),
             "user_domicile_location": patient_data.get("domicile_location"),
             "user_phone": patient_data.get("phone"),
             "preferred_language": patient_data.get("preferred_language", "en"),
@@ -141,16 +141,9 @@ async def start_ai_chat_session(current_user_id: Annotated[str, Depends(get_curr
         "preferred_language": row.get("preferred_language") or "en",
 
         # Medical History
-        "chronic_conditions": (
-            json.loads(row["chronic_conditions"]) if isinstance(row.get("chronic_conditions"), str) else (row.get("chronic_conditions") or [])
-        ),
-        "allergies": (
-            json.loads(row["allergies"]) if isinstance(row.get("allergies"), str) else (row.get("allergies") or [])
-        ),
-        "current_medications": (
-            json.loads(row["current_medications"]) if isinstance(row.get("current_medications"), str) else (row.get("current_medications") or [])
-        ),
-
+        "chronic_conditions": row.get("chronic_conditions") or [],
+        "allergies": row.get("allergies") or [],
+        "current_medications": row.get("current_medications") or [],
         # LLM-Detected Context
         "detected_language": row.get("detected_language") or "en",
         "detected_urgency": row.get("detected_urgency", "Medium"),
