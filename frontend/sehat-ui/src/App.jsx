@@ -46,6 +46,9 @@ function App() {
     }
   };
 
+  const [userId, setUserId] = useState(null);
+  const [sessionSent, setSessionSent] = useState(false);
+
   // Start chat session after login
   useEffect(() => {
     if (!token) return;
@@ -58,12 +61,15 @@ function App() {
           },
         });
         setSession(res.data.session);
-        console.log("Session:", res.data.session);
+        setUserId(res.data.user_id);
+        
+        console.log("FROM FRONTEND\nSession:", res.data.session, "User ID:", res.data.user_id);
 
         // Open websocket connection
         const ws = new WebSocket("ws://localhost:8000/ws/chat");
         ws.onmessage = (e) => {
-          setMessages((prev) => [...prev, { from: "agent", text: e.data }]);
+          const data = JSON.parse(e.data)
+          setMessages((prev) => [...prev, { from: "agent", text: data.response}]);
         };
         setSocket(ws);
       } catch (err) {
@@ -78,9 +84,16 @@ function App() {
   // Send chat message
   const sendMessage = () => {
     if (!input || !socket) return;
-    socket.send(JSON.stringify({
-      message: input,
-    }))
+
+    const payload = { message: input, user_id: userId};
+    
+    if (!sessionSent && session) {
+      payload.session = session;
+      setSessionSent(true);
+    }
+
+    socket.send(JSON.stringify(payload));
+
     setMessages((prev) => [...prev, { from: "user", text: input }]);
     setInput("");
   };

@@ -35,4 +35,5 @@ dependencies = [
     "protoc-gen-openapiv2==0.0.1",
     "pyasn1-modules==0.4.2",
     "structlog==25.5.0",
+    "openai>=2.7.2",
 ]

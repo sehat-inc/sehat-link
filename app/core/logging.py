@@ -1,181 +1,56 @@
-import json
 import logging
-from datetime import datetime
-from pathlib import Path
-import structlog
+from logging.handlers import RotatingFileHandler
 import sys
-from typing import (
-    Any,
-    List,
-)
+import os
 
-from app.core.config import (
-    Environment,
-    settings,
-)
+# Create logs directory if not exists
+LOG_DIR = "logs"
+os.makedirs(LOG_DIR, exist_ok=True)
 
-# Ensure log directory exists
-settings.LOG_DIR.mkdir(parents=True, exist_ok=True)
-
-
-def get_log_file_path() -> Path:
+# Logger configuration
+def get_logger(name: str = __name__, level: int = logging.INFO) -> logging.Logger:
     """
-    Get the current log file path based on date and environment.
-    """
-
-    env_prefix = settings.ENVIRONMENT.value
-    return settings.LOG_DIR / f"{env_prefix}-{datetime.now().strftime('%Y-%m-%d')}.jsonl"
-
-
-class JsonlFileHandler(logging.Handler):
-    """
-    Custom handler for writing JSONL logs to daily files.
-    """
-
-    def __init__(self, file_path: Path):
-        """
-        Initialize the JSONL file handler.
-        """
-        
-        super().__init__()
-        self.file_path = file_path
-
-    def emit(self, record: logging.LogRecord) -> None:
-        """
-        Emit a record to the JSONL file.
-        """
-        
-        try:
-            log_entry = {
-                "timestamp": datetime.fromtimestamp(record.created).isoformat(),
-                "level": record.levelname,
-                "message": record.getMessage(),
-                "module": record.module,
-                "function": record.funcName,
-                "filename": record.pathname,
-                "line": record.lineno,
-                "environment": settings.ENVIRONMENT.value,
-            }
-
-            with open(self.file_path, "a", encoding="utf-8") as f:
-                f.write(json.dumps(log_entry) + "\n")
-        except Exception:
-            self.handleError(record)
-
-    def close(self) -> None:
-        """
-        Close the handler.
-        """
-        
-        super().close()
-
-def get_structlog_processors(include_file_info: bool = True) -> List[Any]:
-    """Get the structlog processors based on configuration.
+    Returns a configured logger with console and rotating file handlers.
 
     Args:
-        include_file_info: Whether to include file information in the logs
+        name (str): Logger name, typically __name__.
+        level (int): Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL).
 
     Returns:
-        List[Any]: List of structlog processors
+        logging.Logger: Configured logger instance.
     """
-    # Set up processors that are common to both outputs
-    processors = [
-        structlog.stdlib.filter_by_level,
-        structlog.stdlib.add_logger_name,
-        structlog.stdlib.add_log_level,
-        structlog.stdlib.PositionalArgumentsFormatter(),
-        structlog.processors.TimeStamper(fmt="iso"),
-        structlog.processors.StackInfoRenderer(),
-        structlog.processors.format_exc_info,
-        structlog.processors.UnicodeDecoder(),
-    ]
+    logger = logging.getLogger(name)
+    if logger.hasHandlers():
+        return logger  # Avoid adding handlers multiple times
 
-    # Add callsite parameters if file info is requested
-    if include_file_info:
-        processors.append(
-            structlog.processors.CallsiteParameterAdder(
-                {
-                    structlog.processors.CallsiteParameter.FILENAME,
-                    structlog.processors.CallsiteParameter.FUNC_NAME,
-                    structlog.processors.CallsiteParameter.LINENO,
-                    structlog.processors.CallsiteParameter.MODULE,
-                    structlog.processors.CallsiteParameter.PATHNAME,
-                }
-            )
-        )
+    logger.setLevel(level)
 
-    # Add environment info
-    processors.append(lambda _, __, event_dict: {**event_dict, "environment": settings.ENVIRONMENT.value})
+    # Formatter
+    formatter = logging.Formatter(
+        "[%(asctime)s] [%(levelname)s] [%(name)s] - %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S"
+    )
 
-    return processors
-
-
-def setup_logging():
-    """
-    Configure logger with different settings
-
-    In dev: console logs
-    In prod & test: json logs
-    """
-    
-    # Create File Handler
-    file_handler = JsonlFileHandler(get_log_file_path())
-    file_handler.setLevel(settings.LOG_LEVEL)
-
-    # Create Console Handler
+    # Console handler
     console_handler = logging.StreamHandler(sys.stdout)
-    console_handler.setLevel(settings.LOG_LEVEL)
+    console_handler.setFormatter(formatter)
+    logger.addHandler(console_handler)
 
-    # Get shared processors
-    shared_processors = get_structlog_processors(
-        # Include detailed file info only in development and test
-        include_file_info=settings.ENVIRONMENT in [Environment.DEVELOPMENT, Environment.TEST]
+    # Rotating file handler
+    file_handler = RotatingFileHandler(
+        os.path.join(LOG_DIR, "app.log"),
+        maxBytes=10 * 1024 * 1024,  # 10 MB per file
+        backupCount=5,  # Keep last 5 logs
+        encoding="utf-8"
     )
+    file_handler.setFormatter(formatter)
+    logger.addHandler(file_handler)
 
-    # Configure standard logging
-    logging.basicConfig(
-        format="%(message)s",
-        level=settings.LOG_LEVEL,
-        handlers=[file_handler, console_handler],
-    )
-
-    # Configure structlog based on environment
-    if settings.LOG_FORMAT == "console":
-        # Development-friendly console logging
-        structlog.configure(
-            processors=[
-                *shared_processors,
-                # Use ConsoleRenderer for pretty output to the console
-                structlog.dev.ConsoleRenderer(),
-            ],
-            wrapper_class=structlog.stdlib.BoundLogger,
-            logger_factory=structlog.stdlib.LoggerFactory(),
-            cache_logger_on_first_use=True,
-        )
-    else:
-        # Production JSON logging
-        structlog.configure(
-            processors=[
-                *shared_processors,
-                structlog.processors.JSONRenderer(),
-            ],
-            wrapper_class=structlog.stdlib.BoundLogger,
-            logger_factory=structlog.stdlib.LoggerFactory(),
-            cache_logger_on_first_use=True,
-        )
+    return logger
 
 
-# Initialize logging
-setup_logging()
 
-# Create logger instance
-logger = structlog.get_logger()
-logger.info(
-    "logging_initialized",
-    environment=settings.ENVIRONMENT.value,
-    log_level=settings.LOG_LEVEL,
-    log_format=settings.LOG_FORMAT,
-)
+
 
 
 

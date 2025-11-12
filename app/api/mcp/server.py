@@ -8,10 +8,11 @@ load_dotenv()
 
 PINECONE_API = os.getenv("PINECONE_API")
 PC_INDEX_NAME = os.getenv("PC_INDEX_NAME")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY") or ""
 
 mcp = FastMCP("sehat-link")
 
-pc_ctx_tool = PineconeQuery(str(PINECONE_API), str(PC_INDEX_NAME))
+pc_ctx_tool = PineconeQuery(str(PINECONE_API), str(OPENAI_API_KEY), str(PC_INDEX_NAME))
 
 mcp.tool(
     pc_ctx_tool.smart_query,

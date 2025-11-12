@@ -9,6 +9,7 @@ from fastapi import (
 import json
 from datetime import datetime
 from fastapi.middleware.cors import CORSMiddleware
+from pinecone.db_control.enums.clouds import CloudProvider
 
 from routers import doctor, patient, hospital
 
@@ -18,6 +19,10 @@ from core.langgraph.agent import build_triage_agent, run_graph_with_message
 from core.langgraph.utils.state import MedicalAgentSession, MedicalAgentState
 from core.tests.test_state import create_initial_state
 
+from core.logging import get_logger
+
+
+logger = get_logger("MAIN APP LOGIC")
 
 app = FastAPI()
 
@@ -52,48 +57,42 @@ async def chat_socket(socket: WebSocket):
     
     graph = build_triage_agent()
     
-    # Session state (persists across messages in this connection)
-    session_id: Optional[str] = None
-    
     try:
         while True:
             # Receive message from client
             data = await socket.receive_text()
+            logger.info("Recieve Message from WebSocket")
             
             try:
                 # Parse incoming JSON
                 payload = json.loads(data)
                 user_msg = payload.get("message", "")
+                user_id = payload.get("user_id", "")
+                chat_start_session = payload.get("session", "")
 
-                current_state: Optional[MedicalAgentState] = None
-
-                session = MedicalAgentSession(current_state)
-                current_state = session.update_state(**payload["session"])
-                
-                session_id = current_state["session_id"]
-                print(f"Initialized session for {session_id} for user {current_state["user_id"]}")
-                
-                
-                elif "session_id" in payload:
-                    session_id = payload["session_id"]
-                    if session_id not in current_state:
-                        await socket.send_text(json.dump({
-                            "response": "Error: Your session was not found",
-                            "error": "session was not found"
-                        }))
-                        continue
-
-                if not current_state:
+                if not user_id:
                     await socket.send_text(json.dumps({
-                        "response": "Error: No session information was provided.",
+                        "response": "Error: Missing user_id",
+                        "error": "user_id required"
+                    }))
+                    continue
+               
+                if not chat_start_session:
+                    await socket.send_text(json.dumps({
+                        "response": "Error: Missing initial session state from /chat-start.",
                         "error": "Missing session"
                     }))
                     continue
+               
+                session = MedicalAgentSession(chat_start_session)
+                current_state = session.state
 
+                logger.info(f"-------- SESSION STATE -----\n{current_state}")
+                
 
                 # Run graph with message
-                result = await run_graph_with_message(graph, current_state, user_msg)
-
+                result = await run_graph_with_message(graph, current_state, user_msg) 
+                logger.info(f"RESULT: {result}")
 
                 updated_state = result["state"]
                 
@@ -103,14 +102,13 @@ async def chat_socket(socket: WebSocket):
                     "agent": result["agent"],
                     "urgency": result.get("urgency", "Low"),
                     "language": result.get("language", "english"),
-                    "session_id": session_id,
                     "timestamp": datetime.utcnow().isoformat()
                 }
                 
                 await socket.send_text(json.dumps(response_payload))
                 
             except Exception as e:
-                print(f"Message processing error: {e}")
+                logger.info(f"Message processing error: {e}")
                 error_response = {
                     "response": "Sorry, I encountered an error processing your message.",
                     "error": str(e),
@@ -119,10 +117,10 @@ async def chat_socket(socket: WebSocket):
                 await socket.send_text(json.dumps(error_response))
     
     except WebSocketDisconnect:
-        print(f"WebSocket disconnected for user") 
+        logger.info(f"WebSocket disconnected for user") 
     
     except Exception as e:
-        print(f"WebSocket error: {e}")
+        logger.info(f"WebSocket error: {e}")
         await socket.close()
 
 
