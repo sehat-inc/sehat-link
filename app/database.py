@@ -2,6 +2,7 @@ import os
 from dotenv import load_dotenv
 from typing import List, Dict, TypedDict, TypeVar, Type, Any
 from supabase import create_client, Client
+from core.langgraph.utils.state import MedicalAgentState
 
 load_dotenv()
 
@@ -42,3 +43,33 @@ def fetch_longterm_by_user_id(supabase: Client, table_name: str, user_id: str, r
     return typed_rows
 
     
+def save_disease_report(state: MedicalAgentState, supabase):
+    """
+    Simple function to save one disease report at session end.
+    Uses data from longterm_session state.
+    """
+    patient_id = state["user_id"]
+    reported_city = state.get("user_location", "Unknown")
+    
+    # Get disease name (from detected_problem_type)
+    disease_name = state.get("detected_problem_type", "Unknown Disease")
+    
+    # Map detected_urgency to severity_level
+    urgency_to_severity = {
+        "Emergency": "Critical",
+        "High": "Severe",
+        "Medium": "Moderate",
+        "Low": "Mild"
+    }
+    severity_level = urgency_to_severity.get(state.get("detected_urgency", "Medium"), "Unknown")
+
+    try:
+        supabase.table("disease_reports").insert({
+            "patient_id": patient_id,
+            "disease_name": disease_name,
+            "reported_city": reported_city,
+            "severity_level": severity_level
+        }).execute()
+        print(f"✅ Saved disease report: {disease_name} ({severity_level}) for patient {patient_id}")
+    except Exception as e:
+        print(f"❌ Failed to save disease report: {e}")
