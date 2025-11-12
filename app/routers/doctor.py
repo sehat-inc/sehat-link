@@ -1,6 +1,6 @@
-from app.auth_utils import hash_password, verify_password, create_access_token, get_current_doctor_id
-from app.database import get_supabase 
-from app.models import DoctorSignUpPayload, NewHospitalDetails, DoctorLogin, Token
+from auth_utils import hash_password, verify_password, create_access_token, get_current_doctor_id
+from database import get_supabase 
+from models import DoctorSignUpPayload, NewHospitalDetails, DoctorLogin, Token
 from fastapi import APIRouter, HTTPException, status, Depends
 from typing import Dict, Any, Annotated
 

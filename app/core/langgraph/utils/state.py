@@ -13,12 +13,12 @@ class MedicalAgentState(TypedDict):
     messages: Annotated[List[BaseMessage], operator.add]
     
     # User Context (loaded from FastAPI/Supabase)
-    user_id: str
+    user_id: int
     user_name: Optional[str]
     user_age: Optional[int]
     user_gender: Optional[str]
-    user_location: Dict[str, str]
-    user_domicile_location: Optional[Dict[str, str]]
+    user_location: str
+    user_domicile_location: Optional[str]
     user_phone: Optional[str]
     # This is different from detected_language as this is
     # populated at the session end where LLM infers communication preference
@@ -28,10 +28,6 @@ class MedicalAgentState(TypedDict):
     chronic_conditions: List[str]
     allergies: List[str]
     current_medications: List[str]
-    
-    # Session Metadata
-    session_id: str
-    started_at: str
     
     # LLM-Detected Context (updated by detector nodes)
     detected_language: str  # LLM detection result
@@ -60,3 +56,15 @@ class MedicalAgentState(TypedDict):
     shared_facts: List[str]
     shared_warnings: List[str]
     red_flags: List[str]  # Medical red flags detected
+
+
+class MedicalAgentSession:
+    def __init__(self, state: Optional[MedicalAgentState] = None):
+        self.state: Optional[MedicalAgentState] = state
+
+    def update_state(self, updates: dict):
+        if self.state is None:
+            raise ValueError("State not initialized")
+        for k, v in updates.items():
+            if k in self.state:
+                self.state[k] = v

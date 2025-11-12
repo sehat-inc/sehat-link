@@ -8,7 +8,7 @@ from jose import JWTError, jwt
 from passlib.context import CryptContext
 from dotenv import load_dotenv
 
-from app.models import TokenData
+from models import TokenData
 
 load_dotenv()
 

@@ -18,8 +18,7 @@ def get_supabase():
 
 T = TypeVar("T", bound=dict[str, Any])
 
-def fetch_by_user_id(table_name: str, user_id: str, record_type: Type[T]) -> List[T]:
-    supabase = get_supabase()
+def fetch_longterm_by_user_id(supabase: Client, table_name: str, user_id: str, record_type: Type[T]) -> List[T]:
 
     response = supabase.table(table_name).select("*").eq("user_id", user_id).execute()
     
