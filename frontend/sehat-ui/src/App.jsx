@@ -47,7 +47,7 @@ function App() {
   };
 
   const [userId, setUserId] = useState(null);
-  const [sessionSent, setSessionSent] = useState(false);
+  const [sessionId, setSessionId] = useState(null);
 
   // Start chat session after login
   useEffect(() => {
@@ -60,18 +60,29 @@ function App() {
             Authorization: `Bearer ${token}`,
           },
         });
-        setSession(res.data.session);
+        setSessionId(res.data.session_id);
         setUserId(res.data.user_id);
         
-        console.log("FROM FRONTEND\nSession:", res.data.session, "User ID:", res.data.user_id);
+        console.log("FROM FRONTEND\nSession:", res.data.session_id, "User ID:", res.data.user_id);
 
         // Open websocket connection
         const ws = new WebSocket("ws://localhost:8000/ws/chat");
+
         ws.onmessage = (e) => {
           const data = JSON.parse(e.data)
           setMessages((prev) => [...prev, { from: "agent", text: data.response}]);
         };
+        
+        ws.onerror = (error) => {
+        console.error("WebSocket error:", error);
+        };
+      
+        ws.onclose = () => {
+          console.log("WebSocket disconnected");
+        };
+        
         setSocket(ws);
+      
       } catch (err) {
         console.error(err);
         alert("Failed to start chat session");
@@ -83,15 +94,10 @@ function App() {
 
   // Send chat message
   const sendMessage = () => {
-    if (!input || !socket) return;
+    if (!input || !socket || socket.readyState !== WebSocket.OPEN) return;
 
-    const payload = { message: input, user_id: userId};
+    const payload = { message: input, user_id: userId };
     
-    if (!sessionSent && session) {
-      payload.session = session;
-      setSessionSent(true);
-    }
-
     socket.send(JSON.stringify(payload));
 
     setMessages((prev) => [...prev, { from: "user", text: input }]);

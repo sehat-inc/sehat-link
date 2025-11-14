@@ -8,6 +8,47 @@ from database import get_supabase, fetch_longterm_by_user_id
 from models import PatientSignUp, PatientLogin, Token
 
 from core.langgraph.utils.state import MedicalAgentState, MedicalAgentSession
+from core.logging import get_logger
+
+def safe_str(x):
+    if isinstance(x, str): 
+        return x
+    else: 
+        return str(x)
+
+    if hasattr(x, "content"):
+        return str(x.content)
+    if hasattr(x, "text"):
+        return str(x.text)
+    return str(x)
+
+def safe_int(value, default=None):
+    if value is None:
+        return default
+    try:
+        return int(value)
+    except (ValueError, TypeError):
+        return default
+
+def safe_list(value, default=None):
+    if value is None:
+        return default or []
+    if isinstance(value, str):
+        try:
+            return json.loads(value)
+        except:
+            return default or []
+    elif isinstance(value, list):
+        return value
+    else:
+        return default or []
+
+def safe_bool(value, default=False):
+    if value is None:
+        return default
+    return bool(value)
+
+logger = get_logger("PATIENT ROUTER")
 
 router = APIRouter(prefix="/patient", tags=["Patient"])
 
@@ -75,6 +116,109 @@ def login_for_access_token(form_data: PatientLogin):
     return Token(access_token=access_token)
 
 
+async def load_initial_state_from_db(user_id: int) -> MedicalAgentState:
+    """Load initial state from database"""
+    
+    try:
+        supabase = get_supabase()
+        resp = supabase.table("longterm_session").select("*").eq("user_id", int(user_id)).execute()
+    except Exception as e:
+        logger.error(f"Error in getting supabase longterm session: {e}")
+        
+
+    if not resp.data:
+        raise ValueError(f"No session data found for user {user_id}")
+   
+        
+    row: Dict[str, Any] = resp.data[0]
+    state: MedicalAgentState = {
+        "messages": [],
+        "user_id": safe_int(row.get("user_id"), 0),
+        "user_name": safe_str(row.get("user_name")),
+        "user_age": safe_int(row.get("user_age")),
+        "user_gender": safe_str(row.get("user_gender")),
+        "user_location": safe_str(row.get("user_location", "")), 
+        "user_domicile_location": safe_str(row.get("user_domicile_location")),
+        "user_phone": safe_str(row.get("user_phone")),
+        "preferred_language": safe_str(row.get("preferred_language", "en")),
+
+        # Medical History
+        "chronic_conditions": safe_list(row.get("chronic_conditions"), []),
+        "allergies": safe_list(row.get("allergies"), []),
+        "current_medications": safe_list(row.get("current_medications"), []),
+        
+        # LLM-Detected Context
+        "detected_language": safe_str(row.get("detected_language", "en")),
+        "detected_urgency": row.get("detected_urgency", "Medium"),
+        "detected_problem_type": safe_str(row.get("detected_problem_type", "")), 
+
+        # Symptoms
+        "symptoms_collected": safe_list(row.get("symptoms_collected"), []),
+        "symptoms_summary": safe_str(row.get("symptoms_summary")),
+
+        # MCP Tool Results
+        "symptom_research_result": safe_list(row.get("symptom_research_result")),
+        "similar_cases": safe_list(row.get("similar_cases"), []),
+
+        # Agent Coordination
+        "current_agent": safe_str(row.get("current_agent")),
+        "previous_agent": safe_str(row.get("previous_agent")),
+        "handoff_context": safe_str(row.get("handoff_context")),
+
+        # Agent Flags
+        "triage_complete": safe_bool(row.get("triage_complete"), False),
+        "sufficient_symptom_data": safe_bool(row.get("sufficient_symptom_data"), False),
+        "requires_deep_research": safe_bool(row.get("requires_deep_research"), False),
+
+        # Shared Knowledge
+        "shared_facts": safe_list(row.get("shared_facts"), []),
+        "shared_warnings": safe_list(row.get("shared_warnings"), []),
+        "red_flags": safe_list(row.get("red_flags"), []),
+
+    }
+    
+    return state
+
+async def ensure_user_session_exists(user_id: int, supabase):
+    """
+    Create and Initial session if it doesnt exist in db
+    """
+    
+    try:
+        longterm_resp = supabase.table("longterm_session").select("*").eq("user_id", user_id).execute()
+        longterm_data = getattr(longterm_resp, "data", None)
+
+        logger.info(longterm_data)
+    except Exception as e:
+        logger.error(f"Error getting longterm session: {e}")
+        return
+
+    if not longterm_data:
+        try:
+            patient_record = supabase.table("patients").select("*").eq("id", user_id).execute()
+            patient_data = patient_record.data[0]
+            new_row = {
+                "user_id": user_id,
+                "user_name": patient_data.get("name"),
+                "user_age": patient_data.get("age"),
+                "user_gender": patient_data.get("gender"),
+                "user_location": patient_data.get("location"),
+                "user_domicile_location": patient_data.get("domicile_location"),
+                "user_phone": patient_data.get("phone"),
+                "preferred_language": patient_data.get("preferred_language", "en"),
+            }
+
+            insert_resp = supabase.table("longterm_session").insert(new_row).execute()
+            data = getattr(insert_resp, "data", [new_row])  
+        except Exception as e:
+            logger.error(f"Error in Setting new Patient Record in Fallback: {e}")
+            return
+    else:
+        data = longterm_data
+
+    logger.info(f"DATA AFTER ENSURANCE: {data}")
+
+
 @router.get("/chat-start")
 async def start_ai_chat_session(current_user_id: Annotated[str, Depends(get_current_user_id)]):
     """
@@ -87,100 +231,12 @@ async def start_ai_chat_session(current_user_id: Annotated[str, Depends(get_curr
     
     if not patient_record.data:
         raise HTTPException(status_code=404, detail="Patient data not found")
-
-    patient_data = patient_record.data[0]
-    print(patient_data)
     
-    try:
-        user_idd = int(current_user_id)
-    except ValueError:
-        id_t = type(user_idd)
-        raise HTTPException(status_code=400, detail=f"Incorrect format of UserID: {id_t} | should be int8")
     
-    longterm_resp = supabase.table("longterm_session").select("*").eq("user_id", user_idd).execute()
-    longterm_data = getattr(longterm_resp, "data", None)
+    await ensure_user_session_exists(int(current_user_id), supabase)
     
-    print(longterm_data)
-
-    # If no data exists for this user, create a new row
-    if not longterm_data:
-        new_row = {
-            "user_id": user_idd,
-            "user_name": patient_data.get("name"),
-            "user_age": patient_data.get("age"),
-            "user_gender": patient_data.get("gender"),
-            "user_location": patient_data.get("city"),
-            "user_domicile_location": patient_data.get("domicile_location"),
-            "user_phone": patient_data.get("phone"),
-            "preferred_language": patient_data.get("preferred_language", "en"),
-        }
-
-        insert_resp = supabase.table("longterm_session").insert(new_row).execute()
-        data = getattr(insert_resp, "data", [new_row])  # fallback if Supabase doesn’t return row
-    else:
-        data = longterm_data
-
-    print(data)
-
-    # Take the first row (Supabase always returns a list)
-    row: Dict[str, Any] = data[0]
-
-    # Build the state
-    state: MedicalAgentState = {
-        # Core Conversation
-        "messages": [],
-
-        # User Context
-        "user_id": row.get("user_id", 0),
-        "user_name": row.get("user_name"),
-        "user_age": row.get("user_age"),
-        "user_gender": row.get("user_gender"),
-        "user_location": row.get("user_location"), 
-        "user_domicile_location": row.get("user_domicile_location"), 
-        "user_phone": row.get("user_phone"),
-        "preferred_language": row.get("preferred_language") or "en",
-
-        # Medical History
-        "chronic_conditions": row.get("chronic_conditions") or [],
-        "allergies": row.get("allergies") or [],
-        "current_medications": row.get("current_medications") or [],
-        # LLM-Detected Context
-        "detected_language": row.get("detected_language") or "en",
-        "detected_urgency": row.get("detected_urgency", "Medium"),
-        "detected_problem_type": row.get("detected_problem_type") or "",
-
-        # Symptoms
-        "symptoms_collected": row.get("symptoms_collected") or [],
-        "symptoms_summary": row.get("symptoms_summary") or "",
-
-        # MCP Tool Results
-        "symptom_research_result": row.get("symptom_research_result"),
-        "similar_cases": row.get("similar_cases") or [],
-
-        # Agent Coordination
-        "current_agent": row.get("current_agent") or "triage_agent",
-        "previous_agent": row.get("previous_agent"),
-        "handoff_context": row.get("handoff_context"),
-
-        # Agent Flags
-        "triage_complete": row.get("triage_complete", False),
-        "sufficient_symptom_data": row.get("sufficient_symptom_data", False),
-        "requires_deep_research": row.get("requires_deep_research", False),
-
-        # Shared Knowledge
-        "shared_facts": row.get("shared_facts") or [],
-        "shared_warnings": row.get("shared_warnings") or [],
-        "red_flags": row.get("red_flags") or [],
-    }    
-
-    print(f"State: \n{state}")
-
-    session = MedicalAgentSession(state=state)
-    
-    print(f"Session: \n{session}")
-
     return {
         "message": "Authenticated. AI chat session initiated.", 
-        "user_id": current_user_id,
-        "session": session
+        "user_id": int(current_user_id),
+        "session_id": f"user_{int(current_user_id)}" 
     }

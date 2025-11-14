@@ -13,13 +13,14 @@ from core.prompts.mcp_client_prompts import (
     urgency_detector_prompt,
     frontend_agent_prompt
 )
-from core.longterm_memory import PineconeMemory
+from core.logging import get_logger
+
+
+logger = get_logger("NODE LOGIC")
 
 load_dotenv()
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-
-# TODO: Helper function, might move it to a different py script
 
 NODE_STREAMING_MODE = {
     "frontend_agent": True, 
@@ -31,12 +32,38 @@ def safe_str(x):
         return x
     else: 
         return str(x)
-    
+
     if hasattr(x, "content"):
         return str(x.content)
     if hasattr(x, "text"):
         return str(x.text)
     return str(x)
+
+def safe_int(value, default=None):
+    if value is None:
+        return default
+    try:
+        return int(value)
+    except (ValueError, TypeError):
+        return default
+
+def safe_list(value, default=None):
+    if value is None:
+        return default or []
+    if isinstance(value, str):
+        try:
+            return json.loads(value)
+        except:
+            return default or []
+    elif isinstance(value, list):
+        return value
+    else:
+        return default or []
+
+def safe_bool(value, default=False):
+    if value is None:
+        return default
+    return bool(value)
 
 # TODO: Add proper geolocation - i remember doing this before but now forgot
 _CITY_TO_PROVINCE = {
@@ -56,7 +83,7 @@ def infer_province_from_city(city: Optional[str]) -> Optional[str]:
     key = city.strip().lower()
     return _CITY_TO_PROVINCE.get(key)
 
-################# Move All Functions above in helper.py
+
 
 class Node:
     """
@@ -138,8 +165,12 @@ class UrgencyDetectorNode(Node):
 
     async def __call__(self, state: MedicalAgentState) -> Dict[str, Any]:
         
-        if not state["symptoms_collected"]:
-            return {}
+        symptoms = state.get("symptoms_collected", [])
+
+        if not symptoms:
+            logger.info("UrgencyDetectorNode skipped - no symptoms collected yet")
+            # Return state unchanged
+            return {"current_agent": "urgency_detector"}        
         
         symptom_lines = []
         for s in state["symptoms_collected"]:

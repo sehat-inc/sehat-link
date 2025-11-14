@@ -36,4 +36,6 @@ dependencies = [
     "pyasn1-modules==0.4.2",
     "structlog==25.5.0",
     "openai>=2.7.2",
+    "redis<7.0",
+    "langgraph-checkpoint-redis>=0.1.2",
 ]

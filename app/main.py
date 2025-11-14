@@ -1,6 +1,7 @@
 from typing import Optional, Any, List, Dict
 from fastapi import (
     FastAPI,
+    HTTPException,
     Request,
     WebSocket,
     WebSocketDisconnect,
@@ -9,20 +10,26 @@ from fastapi import (
 import json
 from datetime import datetime
 from fastapi.middleware.cors import CORSMiddleware
-from pinecone.db_control.enums.clouds import CloudProvider
+from langchain_core.messages import HumanMessage, AIMessage
+from langgraph.checkpoint.redis.aio import AsyncRedisSaver
+from contextlib import asynccontextmanager
+import os
 
 from routers import doctor, patient, hospital
 
 from api.mcp.server import mcp_app
-from api.mcp.client import test_agent
-from core.langgraph.agent import build_triage_agent, run_graph_with_message
+from core.langgraph.agent import build_triage_agent
 from core.langgraph.utils.state import MedicalAgentSession, MedicalAgentState
-from core.tests.test_state import create_initial_state
+from routers.patient import load_initial_state_from_db
 
 from core.logging import get_logger
 
 
 logger = get_logger("MAIN APP LOGIC")
+
+REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379")
+logger.info(f"REDIS_URL: {REDIS_URL}")
+
 
 app = FastAPI()
 
@@ -48,6 +55,44 @@ app.include_router(patient.router)
 app.include_router(hospital.router)
 
 
+# Helper to run graph with proper state management
+async def run_graph_for_user(builder, user_id: int, user_message: str):
+    """
+    Helper func for running the graph and returing the result
+    """
+    config = {
+        "configurable": {
+            "thread_id": str(user_id)
+        }
+    }
+
+    async with AsyncRedisSaver.from_conn_string(REDIS_URL) as checkpointer:
+        await checkpointer.asetup()
+        graph = builder.compile(checkpointer=checkpointer)
+        
+        try:
+            current_state = await graph.aget_state(config)
+            logger.info(f"Current State: {current_state}")
+
+            if current_state and current_state.values:
+                state_values = current_state.values
+            else:
+                state_values = await load_initial_state_from_db(user_id)
+        except Exception as e:
+            logger.error(f"Error in Getting Graph State: {e}")
+            return
+        
+        logger.info(f"STATE VALUES: {state_values}")
+
+        updated_state = {
+            **state_values,
+            "messages": [HumanMessage(content=user_message)]
+        }
+
+        result = await graph.ainvoke(updated_state, config=config)
+
+        return result
+
 @app.websocket("/ws/chat")
 async def chat_socket(socket: WebSocket):
     """
@@ -56,59 +101,50 @@ async def chat_socket(socket: WebSocket):
     await socket.accept()
     
     graph = build_triage_agent()
-    
+    logger.info("Graph Built")
+
     try:
         while True:
             # Receive message from client
             data = await socket.receive_text()
+            payload = json.loads(data)
+            user_msg = payload.get("message", "")
+            user_id = payload.get("user_id", "")
+
             logger.info("Recieve Message from WebSocket")
             
+            if not user_id:
+                await socket.send_text(json.dumps({
+                    "response": "Error: Missing user_id",
+                    "error": "user_id required"
+                }))
+                continue
+            
             try:
-                # Parse incoming JSON
-                payload = json.loads(data)
-                user_msg = payload.get("message", "")
-                user_id = payload.get("user_id", "")
-                chat_start_session = payload.get("session", "")
-
-                if not user_id:
-                    await socket.send_text(json.dumps({
-                        "response": "Error: Missing user_id",
-                        "error": "user_id required"
-                    }))
-                    continue
-               
-                if not chat_start_session:
-                    await socket.send_text(json.dumps({
-                        "response": "Error: Missing initial session state from /chat-start.",
-                        "error": "Missing session"
-                    }))
-                    continue
-               
-                session = MedicalAgentSession(chat_start_session)
-                current_state = session.state
-
-                logger.info(f"-------- SESSION STATE -----\n{current_state}")
+                result = await run_graph_for_user(graph, int(user_id), user_msg)
                 
+                if result is not None:
+                    ai_msgs = [m for m in result["messages"] if isinstance(m, AIMessage)]
+                    final_response = ai_msgs[-1].content if ai_msgs else None
+                    r_agent = result.get("current_agent", "Unknown")
+                else:
+                    logger.error(f"Result is None")
+                    r_agent = "Unknown"
+                    final_response = "Error 404"
 
-                # Run graph with message
-                result = await run_graph_with_message(graph, current_state, user_msg) 
+                
                 logger.info(f"RESULT: {result}")
 
-                updated_state = result["state"]
-                
                 # Send response back to client
                 response_payload = {
-                    "response": result["response"],
-                    "agent": result["agent"],
-                    "urgency": result.get("urgency", "Low"),
-                    "language": result.get("language", "english"),
-                    "timestamp": datetime.utcnow().isoformat()
+                    "response": final_response,
+                    "agent": r_agent
                 }
                 
                 await socket.send_text(json.dumps(response_payload))
                 
             except Exception as e:
-                logger.info(f"Message processing error: {e}")
+                logger.error(f"Message processing error: {e}")
                 error_response = {
                     "response": "Sorry, I encountered an error processing your message.",
                     "error": str(e),
@@ -120,7 +156,7 @@ async def chat_socket(socket: WebSocket):
         logger.info(f"WebSocket disconnected for user") 
     
     except Exception as e:
-        logger.info(f"WebSocket error: {e}")
+        logger.error(f"WebSocket error: {e}")
         await socket.close()
 
 
