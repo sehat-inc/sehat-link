@@ -57,6 +57,9 @@ class MedicalAgentState(TypedDict):
     shared_warnings: List[str]
     red_flags: List[str]  # Medical red flags detected
 
+    # prescription
+    prescription_data: Optional[Dict[str, Any]]
+
 
 class MedicalAgentSession:
     def __init__(self, state: Optional[MedicalAgentState] = None):

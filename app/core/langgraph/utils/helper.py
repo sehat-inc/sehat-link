@@ -9,14 +9,12 @@ NODE_STREAMING_MODE = {
 def safe_str(x):
     if isinstance(x, str): 
         return x
-    else: 
-        return str(x)
-
-    if hasattr(x, "content"):
+    elif hasattr(x, "content"):
         return str(x.content)
-    if hasattr(x, "text"):
+    elif hasattr(x, "text"):
         return str(x.text)
-    return str(x)
+    else:
+        return str(x)
 
 def safe_int(value, default=None):
     if value is None:
