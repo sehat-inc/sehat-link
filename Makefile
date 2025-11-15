@@ -16,4 +16,5 @@ test:
 	echo "run tests not implemented yet"
 
 docker:
-	docker run -d --name redis-stack -p 6379:6379 -p 8001:8001 -v redis/sehat-link:/data redis/redis-stack:latest
+	docker volume create redis-stack-data
+	docker run -d --name redis-stack -p 6379:6379 -p 8001:8001 -v redis-stack-data:/data redis/redis-stack:latest
