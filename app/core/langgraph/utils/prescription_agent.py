@@ -4,8 +4,7 @@ from langchain_core.messages import AIMessage, BaseMessage
 
 from core.langgraph.utils.base_node import Node
 from core.langgraph.utils.state import MedicalAgentState
-from helper import safe_str
-
+from core.langgraph.utils.helper import safe_str
 
 class PrescriptionAgent(Node):
     """
@@ -70,7 +69,7 @@ class PrescriptionAgent(Node):
             ("human", [
                 {"type": "text", "text": "Extract medications."},
                 {"type": "image_url", "image_url": image_data}  
-            ])
+            ]) # type: ignore
         ])
             llm_output = safe_str(raw_resp.content)
         except Exception as e:
