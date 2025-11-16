@@ -45,6 +45,5 @@ class UrgencyDetectorNode(Node):
 
         return {
             "detected_urgency": response,
-            "current_agent": "urgency_detector"
         }
 

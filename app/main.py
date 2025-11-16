@@ -14,6 +14,7 @@ from langchain_core.messages import HumanMessage, AIMessage
 from langgraph.checkpoint.redis.aio import AsyncRedisSaver
 from contextlib import asynccontextmanager
 import os
+import uuid
 
 from routers import doctor, patient, hospital
 
@@ -21,6 +22,7 @@ from api.mcp.server import mcp_app
 from core.langgraph.agent import build_triage_agent
 from core.langgraph.utils.state import MedicalAgentSession, MedicalAgentState
 from routers.patient import load_initial_state_from_db
+from core.langgraph.utils.tool_manager import MCPToolManager
 
 from core.logging import get_logger
 
@@ -62,32 +64,38 @@ async def run_graph_for_user(builder, user_id: int, user_message: str):
     """
     config = {
         "configurable": {
-            "thread_id": str(user_id)
+            "thread_id": f"user_{user_id}"
         }
     }
 
     async with AsyncRedisSaver.from_conn_string(REDIS_URL) as checkpointer:
         await checkpointer.asetup()
         graph = builder.compile(checkpointer=checkpointer)
-        
         try:
+
             current_state = await graph.aget_state(config)
             logger.info(f"Current State: {current_state}")
+        except Exception as e:
+            logger.error(f"Error in Getting Current State: {e}")
+            return
 
+        try:
             if current_state and current_state.values:
                 state_values = current_state.values
+                logger.info("Getting Values from current state")
             else:
+                logger.info("Getting State from DB")
                 state_values = await load_initial_state_from_db(user_id)
         except Exception as e:
             logger.error(f"Error in Getting Graph State: {e}")
             return
         
-        logger.info(f"STATE VALUES: {state_values}")
-
         updated_state = {
             **state_values,
             "messages": [HumanMessage(content=user_message)]
         }
+        
+        logger.info(f"UPDATED STATE: {updated_state}")
 
         result = await graph.ainvoke(updated_state, config=config)
 
@@ -100,7 +108,9 @@ async def chat_socket(socket: WebSocket):
     """
     await socket.accept()
     
-    graph = build_triage_agent()
+    mcp_manager = MCPToolManager()
+    await mcp_manager.initialize()
+    graph = build_triage_agent(mcp_manager)
     logger.info("Graph Built")
 
     try:
@@ -121,12 +131,18 @@ async def chat_socket(socket: WebSocket):
                 continue
             
             try:
+                logger.info("About to Run Graph")
                 result = await run_graph_for_user(graph, int(user_id), user_msg)
+                logger.info("Ran Graph")
                 
                 if result is not None:
                     ai_msgs = [m for m in result["messages"] if isinstance(m, AIMessage)]
                     final_response = ai_msgs[-1].content if ai_msgs else None
+                    logger.info(f"FINAL RESPONSE: {final_response}")
                     r_agent = result.get("current_agent", "Unknown")
+                    logger.info(f"Current Agent: {r_agent}")
+                    # if isinstance(r_agent, list):
+                    #     r_agent = r_agent[-1] if r_agent else "Unknown"
                 else:
                     logger.error(f"Result is None")
                     r_agent = "Unknown"
@@ -162,8 +178,17 @@ async def chat_socket(socket: WebSocket):
 
 #NOTE: This is where we merge both MCP and FastAPI app
 
-combined_app = app
-combined_app.mount("/mcp", mcp_app)
+# combined_app = app
+# combined_app.mount("/mcp", mcp_app)
+
+combined_app = FastAPI(
+    title="Healthcare with MCP",
+    routes=[
+        *mcp_app.routes,
+        *app.routes,
+    ],
+    lifespan=mcp_app.lifespan,
+)
 
 
 origins = [

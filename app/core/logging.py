@@ -1,6 +1,5 @@
 import logging
-from logging.handlers import RotatingFileHandler
-import sys
+from logging.handlers import FileHandler
 import os
 
 # Create logs directory if not exists
@@ -27,20 +26,14 @@ def get_logger(name: str = __name__, level: int = logging.INFO) -> logging.Logge
 
     # Formatter
     formatter = logging.Formatter(
-        "[%(asctime)s] [%(levelname)s] [%(name)s] - %(message)s",
+        "[%(asctime)s] | [%(levelname)s] | [%(name)s] | %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S"
     )
 
-    # Console handler
-    console_handler = logging.StreamHandler(sys.stdout)
-    console_handler.setFormatter(formatter)
-    logger.addHandler(console_handler)
-
     # Rotating file handler
-    file_handler = RotatingFileHandler(
+    file_handler = FileHandler(
         os.path.join(LOG_DIR, "app.log"),
-        maxBytes=10 * 1024 * 1024,  # 10 MB per file
-        backupCount=5,  # Keep last 5 logs
+        mode="a",
         encoding="utf-8"
     )
     file_handler.setFormatter(formatter)

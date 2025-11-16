@@ -2,6 +2,7 @@ from typing import Annotated, Any, Dict, Optional
 
 from fastapi import APIRouter, HTTPException, status, Depends
 import json
+import uuid
 
 from auth_utils import hash_password, verify_password, create_access_token, get_current_user_id
 from database import get_supabase, fetch_longterm_by_user_id
@@ -153,6 +154,7 @@ async def load_initial_state_from_db(user_id: int) -> MedicalAgentState:
         "detected_problem_type": safe_str(row.get("detected_problem_type", "")), 
 
         # Symptoms
+        "symptom_trigger": False,
         "symptoms_collected": safe_list(row.get("symptoms_collected"), []),
         "symptoms_summary": safe_str(row.get("symptoms_summary")),
 
@@ -161,9 +163,9 @@ async def load_initial_state_from_db(user_id: int) -> MedicalAgentState:
         "similar_cases": safe_list(row.get("similar_cases"), []),
 
         # Agent Coordination
-        "current_agent": safe_str(row.get("current_agent")),
-        "previous_agent": safe_str(row.get("previous_agent")),
-        "handoff_context": safe_str(row.get("handoff_context")),
+        "current_agent": [],
+        "previous_agent": "",
+        "handoff_context": "",
 
         # Agent Flags
         "triage_complete": safe_bool(row.get("triage_complete"), False),
@@ -237,6 +239,5 @@ async def start_ai_chat_session(current_user_id: Annotated[str, Depends(get_curr
     
     return {
         "message": "Authenticated. AI chat session initiated.", 
-        "user_id": int(current_user_id),
-        "session_id": f"user_{int(current_user_id)}" 
+        "user_id": int(current_user_id)
     }

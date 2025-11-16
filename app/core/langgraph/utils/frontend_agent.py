@@ -1,17 +1,19 @@
 from typing import Dict, Any, Union, AsyncGenerator
 import json
-from langchain_core.messages import AIMessage
+from langchain_core.messages import AIMessage, HumanMessage
 
 from core.langgraph.utils.base_node import Node
 from core.langgraph.utils.state import MedicalAgentState
 from core.langgraph.utils.helper import safe_str
 from core.prompts.mcp_client_prompts import frontend_agent_prompt
+from core.logging import get_logger
 from core.langgraph.utils.helper import (
-    safe_str,
-    infer_province_from_city
+    safe_str
 )
 
+logger = get_logger("FRONTEND AGENT")
 
+MAX_MEMORY = 6
 
 class FrontendNode(Node):
     """
@@ -67,75 +69,72 @@ class FrontendNode(Node):
         if last_msg_obj is not None:
             last_user_txt = safe_str(last_msg_obj)
 
-        system_prompt = frontend_agent_prompt()
+        system_prompt = frontend_agent_prompt(state)
        
-        user_prompt = f"User's last 3 text\n{msgs_text}\nReturn the JSON described above for the LAST user message"
+        user_prompt = f"User's last 3 text\n{msgs_text}\nReturn the output described above for the LAST user message"
         
         try:
             response = await self.ainvoke(system_prompt, user_prompt) 
         except Exception as e:
             print(f"Frontend Error: {e}")
-            response = ""
+            response = "I'm sorry, I encountered a technical issue. Could you please repeat that?"
 
+        parsed = {
+            "symptom_trigger": False,
+            "programme_trigger": False
+        }
+        
+        result = {
+            "response_text": response,
+            "router": {
+                "symptom_trigger": False,
+                "programme_trigger": False
+            }
+        }
+        
+        logger.info("Starting FRONTEND Parsing")
+        if "<response>" in response and "</response" in response:
+            start = response.find("<response") + len("<response>")
+            end = response.find("</response>")
+            result["response_text"] = response[start:end].strip()
+            logger.info(f"RESULT: {result['response_text']}")
 
-        parsed = {"is_symptom": False, "extracted": {"age": None, "gender": None, "city": None, "domicile_city": None}}
-        if response:
+        # Extract symptoms JSON
+        logger.info("Starting Routing FRONTEND Parsing")
+        if "<router>" in response and "</router>" in response:
+            start = response.find("<router>") + len("<router>")
+            end = response.find("</router>")
+            symptoms_json = response[start:end].strip()
             try:
-                parsed_candidate = json.loads(response)
-                parsed = parsed_candidate
+                result["router"] = json.loads(symptoms_json)
+            except json.JSONDecodeError as e:
+                logger.warning(f"Failed to parse symptoms JSON: {e}")
+                result["router"] = {
+                    "symptom_trigger": False,
+                    "programme_trigger": False
+                }
 
-            except Exception as e:
-                start = response.find("{")
-                end = response.rfind("}")
-                if start != -1 and end != -1 and end > start:
-                    try:
-                        parsed_candidate = json.loads(response[start:end+1])
-                        parsed = parsed_candidate
-                    except Exception:
-                        # fall back: leave parsed as default
-                        parsed = parsed
-       
-        is_symptom = bool(parsed.get("is_symptom"))
-        extracted = parsed.get("extracted") or {}
-        age = extracted.get("age")
-        gender = extracted.get("gender")
-        city = extracted.get("city")
-        domicile_city = extracted.get("domicile_city")
+        # start = response.rfind("{")
+        # if start != -1:
+        #     try:
+        #         json_str = response[start:]
+        #         parsed = json.loads(json_str)
+        #         # This is the key: we use the text BEFORE the JSON as the reply
+        #         clean_message = response[:start].strip()
+        #         logger.info("Successfully parsed JSON and separated message.")
+        #     except json.JSONDecodeError as e:
+        #         logger.warning(f"Failed to parse JSON, using full response as message: {e}")
+        
+        
+        clean_message = result["response_text"]
+        routers = result["router"]
+        symptom_trigger = bool(routers.get("symptom_trigger"))
+        programme_trigger = bool(routers.get("programme_trigger"))
 
         delta: Dict[str, Any] = {}
-        # update profile fields only if not already present (prefer existing)
-        if age is not None:
-            try:
-                age_int = int(age)
-                if not state.get("user_age"):
-                    delta["user_age"] = age_int
-            except Exception:
-                pass
+        
 
-        if gender:
-            gender_norm = str(gender).strip().lower()
-            if gender_norm in ("male", "female", "other") and not state.get("user_gender"):
-                delta["user_gender"] = gender_norm
-
-        # current location (city + province inference)
-        if city:
-            city_str = str(city).strip()
-            existing_location = state.get("user_location") or {}
-            # prefer existing explicit fields
-            if not existing_location.get("city"):
-                inferred_prov = infer_province_from_city(city_str)
-                delta["user_location"] = {"city": city_str, "province": inferred_prov or existing_location.get("province")}
-
-        # domicile location (separate field)
-        if domicile_city:
-            domicile_city_str = str(domicile_city).strip()
-            # only write if not present
-            if not state.get("domicile_location"):
-                delta["domicile_location"] = {"city": domicile_city_str, "province": infer_province_from_city(domicile_city_str)}
-
-
-        if is_symptom:
-            # bridging reply from Ms Sehat (calm nurse persona)
+        if symptom_trigger:
             bridging_message = (
                 "I hear you — thank you for telling me that. "
                 "I'm going to pass this to our clinical intake specialist who will ask a few focused questions to understand your symptoms better. "
@@ -143,44 +142,39 @@ class FrontendNode(Node):
                 "If this is an emergency, please say so or call your local emergency number immediately."
             )
 
-            # append the bridging AI message and set handoff context so symptom agent can start immediately
-            delta["messages"] = [AIMessage(content=bridging_message)]
-            # handoff_context holds raw last user message so symptom agent can consume it immediately
+            delta["messages"] = [
+                AIMessage(
+                    content=bridging_message,
+                    additional_kwargs={"structured":parsed}
+                )]
             delta["handoff_context"] = last_user_txt
-            # set the next agent explicitly
             delta["current_agent"] = "symptom_agent"
 
-        else:
-            # not symptom — generate normal friendly reply (Ms Sehat style) and continue conversation
-            # compose a short system prompt for generation
-            reply_system = """
-                You are Ms Sehat, a calm and empathetic hospital triage nurse.
-                Keep reply brief, kind, and helpful. Do NOT provide medical advice or diagnosis.
-                You may ask clarifying non-clinical questions (e.g. 'Are you asking for yourself?')
-                and offer assistance such as how to connect to clinical intake if user wants.\n
-            """
-            reply_user = f"User recent text:\n{last_user_txt}\n\nRespond as Ms Sehat in 1-2 short sentences."
+            return delta
 
+        if programme_trigger:
+            bridging_message = (
+                "I hear you — thank you for telling me that. "
+                "I'm going to pass this to our programme specialist who will ask a few focused questions to understand your situation better. "
+                "They will take it from here."
+            )
+            
+            delta["messages"] = [
+                AIMessage(
+                    content=bridging_message,
+                    additional_kwargs={"structured":parsed}
+                )]
+            delta["handoff_context"] = last_user_txt
+            delta["current_agent"] = "programme_eligibility_agent"
 
-            try:
-                resp = await self.ainvoke(reply_system, reply_user)
-            except Exception as e:
-                print(f"Error from Frontend Node: {e}")
-                resp = "Thanks for telling me - can you tell me a bit more or say 'start symptoms' if you want to describe your symptoms"
+            return delta
 
-            delta["messages"] = [AIMessage(content=resp)]
-            delta["current_agent"] = "frontend_agent"
-
-        delta.setdefault("last_frontend_parse", {})  # non-user-facing, for logs
-        delta["last_frontend_parse"].update({
-            "is_symptom": is_symptom,
-            "extracted": {
-                "age": age,
-                "gender": gender,
-                "city": city,
-                "domicile_city": domicile_city
-            },
-        })
+        delta["messages"] = [
+            AIMessage(
+                content=clean_message,
+                additional_kwargs={"structured":parsed}
+            )]
+        delta["current_agent"] = "frontend_agent"
 
         return delta
 

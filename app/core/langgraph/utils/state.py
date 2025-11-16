@@ -4,6 +4,12 @@ from langchain_core.messages import BaseMessage
 import operator
 
 
+def reducer(a: list, b: str | None) -> list:
+    if b is not None:
+        return a + [b]
+    return a
+
+
 class MedicalAgentState(TypedDict):
     """
     Complete state for medical consultation system.
@@ -35,7 +41,9 @@ class MedicalAgentState(TypedDict):
     detected_problem_type: str
     
     # Symptoms (LLM-extracted from conversation)
-    symptoms_collected: List[Dict[str, Any]]  # [{symptom, severity, duration, location}]
+    program_trigger: bool
+    symptom_trigger: bool
+    symptoms_collected: Annotated[list, operator.add]  # [{symptom, severity, duration, location}]
     symptoms_summary: str  # Natural language summary
     
     # MCP Tool Results
@@ -53,9 +61,9 @@ class MedicalAgentState(TypedDict):
     requires_deep_research: bool
     
     # Shared Knowledge
-    shared_facts: List[str]
-    shared_warnings: List[str]
-    red_flags: List[str]  # Medical red flags detected
+    shared_facts: Annotated[list, operator.add]
+    shared_warnings: Annotated[list, operator.add]
+    red_flags: Annotated[list, operator.add]  # Medical red flags detected
 
 
 class MedicalAgentSession:
