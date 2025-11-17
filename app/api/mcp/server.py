@@ -1,6 +1,8 @@
 from fastmcp import FastMCP
+from fastmcp.experimental.sampling.handlers.openai import OpenAISamplingHandler
 from dotenv import load_dotenv
 import os
+from openai import OpenAI
 
 from api.mcp.tools.vector_db import PineconeQuery
 
@@ -11,7 +13,16 @@ PC_INDEX_NAME = os.getenv("PC_INDEX_NAME")
 PC_INDEX_NAMEV2 = os.getenv("PC_INDEX_NAMEV2")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY") or ""
 
-mcp = FastMCP("sehat-link")
+mcp = FastMCP(
+    name="sehat-link",
+    sampling_handler=OpenAISamplingHandler(
+        default_model="gpt-4o-mini",
+        client=OpenAI(
+            api_key=OPENAI_API_KEY,
+        ),
+    ),
+    sampling_handler_behavior="fallback",
+)
 
 #NOTE: SYMPTOM AGENT
 pc_ctx_tool = PineconeQuery(str(PINECONE_API), str(OPENAI_API_KEY), str(PC_INDEX_NAME))

@@ -1,5 +1,4 @@
 import logging
-from logging.handlers import FileHandler
 import os
 
 # Create logs directory if not exists
@@ -19,25 +18,23 @@ def get_logger(name: str = __name__, level: int = logging.INFO) -> logging.Logge
         logging.Logger: Configured logger instance.
     """
     logger = logging.getLogger(name)
-    if logger.hasHandlers():
-        return logger  # Avoid adding handlers multiple times
-
     logger.setLevel(level)
+    
+    logger.propagate = False
 
-    # Formatter
-    formatter = logging.Formatter(
-        "[%(asctime)s] | [%(levelname)s] | [%(name)s] | %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S"
-    )
+    if not logger.handlers:
+        formatter = logging.Formatter(
+            "[%(asctime)s] | [%(levelname)s] | [%(name)s] | %(message)s",
+            datefmt="%Y-%m-%d %H:%M:%S"
+        )
 
-    # Rotating file handler
-    file_handler = FileHandler(
-        os.path.join(LOG_DIR, "app.log"),
-        mode="a",
-        encoding="utf-8"
-    )
-    file_handler.setFormatter(formatter)
-    logger.addHandler(file_handler)
+        file_handler = logging.FileHandler(
+            os.path.join(LOG_DIR, "app.log"),
+            mode="a",
+            encoding="utf-8"
+        )
+        file_handler.setFormatter(formatter)
+        logger.addHandler(file_handler)
 
     return logger
 
