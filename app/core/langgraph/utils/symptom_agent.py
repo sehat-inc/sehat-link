@@ -104,7 +104,7 @@ class SymptomAgentNode(Node):
                 "Symptom Knowledge Base Smart Query",
                 {
                     "question": query,
-                    "namespace": "analytics-agent-kb",
+                    "namespace": "__default__",
                     "decompose": True, 
                     "top_k_per_query": 5,
                 }
