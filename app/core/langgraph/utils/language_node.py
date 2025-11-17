@@ -27,5 +27,4 @@ class LanguageDetectorNode(Node):
         
         return {
             "detected_language": response,
-            "current_agent": "language_detector"
         }

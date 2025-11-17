@@ -1,4 +1,4 @@
-from typing import AsyncIterator, Dict, Any, Tuple, List
+from typing import AsyncIterator, Dict, Any, Tuple, List, Optional
 from langchain_google_genai import ChatGoogleGenerativeAI
 from dotenv import load_dotenv
 import os
@@ -6,6 +6,7 @@ import os
 from core.langgraph.utils.helper import safe_str
 from core.langgraph.utils.state import MedicalAgentState
 from core.logging import get_logger
+from core.langgraph.utils.tool_manager import MCPToolManager
 
 logger = get_logger("NODE LOGIC")
 
@@ -26,7 +27,14 @@ class Node:
     """
     name: str
 
-    def __init__(self, name: str, api_key: str = str(GEMINI_API_KEY), model: str = "gemini-2.5-flash", temperature: float = 0.7):
+    def __init__(self, 
+                 name: str, 
+                 api_key: str = str(GEMINI_API_KEY), 
+                 model: str = "gemini-2.5-flash", 
+                 temperature: float = 0.7,
+                 mcp_manager: Optional[MCPToolManager] = None,
+                 allowed_tools: List[str] = None):
+        
         self.name = name
         self.llm = ChatGoogleGenerativeAI(
             google_api_key=api_key,
@@ -34,6 +42,8 @@ class Node:
             temperature=temperature,
             convert_system_message_to_human=True,
         )
+        self.mcp_manager = mcp_manager
+        self.allowed_tools = allowed_tools or []
 
     async def ainvoke(self, prompt: str, user_prompt: str = "") -> str:
         if user_prompt != "":
@@ -57,4 +67,18 @@ class Node:
     async def __call__(self, state: MedicalAgentState) -> Dict[str, Any]:
         raise NotImplementedError("Node Children must implement __call__")
 
+    def has_tool_access(self, tool_name: str) -> bool:
+        """Check if this node has access to a specific tool"""
+        if not self.mcp_manager:
+            return False
+        if not self.allowed_tools:
+            return False
+        return tool_name in self.allowed_tools
+    
+    async def use_mcp_tool(self, tool_name: str, arguments: Dict[str, Any]) -> Any:
+        """Use an MCP tool if available"""
+        if not self.has_tool_access(tool_name):
+            raise ValueError(f"Node does not have access to tool: {tool_name}")
+        
+        return await self.mcp_manager.call_tool(tool_name, arguments) 
 
