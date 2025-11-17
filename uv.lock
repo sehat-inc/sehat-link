@@ -1243,6 +1243,18 @@ wheels = [
 ]
 
 [[package]]
+name = "langgraph-swarm"
+version = "0.0.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "langgraph" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/46/48/493a2644349e928f21d03d4781eb3e07f061b4626702b9706334beead3df/langgraph_swarm-0.0.2.tar.gz", hash = "sha256:075e04e82ad15ba048d3a69ecbdb0f2a47be08662b9b915a1abf1561d5283a2d", size = 6953, upload-time = "2025-02-26T00:58:44.231Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/27/33/41729b868c6b731e9e2e0a92e9f06542b8ec3ba4a5a9b6fe01b1419ef862/langgraph_swarm-0.0.2-py3-none-any.whl", hash = "sha256:425f190f4fc32bb62e2801fc66e46fea809154a88d53be8c549e6f322d558bd1", size = 8061, upload-time = "2025-02-26T00:58:41.653Z" },
+]
+
+[[package]]
 name = "langsmith"
 version = "0.4.42"
 source = { registry = "https://pypi.org/simple" }
@@ -2510,6 +2522,7 @@ dependencies = [
     { name = "langchain-google-genai" },
     { name = "langgraph" },
     { name = "langgraph-checkpoint-redis" },
+    { name = "langgraph-swarm" },
     { name = "lz4" },
     { name = "openai" },
     { name = "passlib" },
@@ -2546,6 +2559,7 @@ requires-dist = [
     { name = "langchain-google-genai", specifier = ">=3.0.1" },
     { name = "langgraph", specifier = ">=1.0.2" },
     { name = "langgraph-checkpoint-redis", specifier = ">=0.1.2" },
+    { name = "langgraph-swarm", specifier = ">=0.0.2" },
     { name = "lz4", specifier = "==4.4.5" },
     { name = "openai", specifier = ">=2.7.2" },
     { name = "passlib", specifier = ">=1.7.4" },
