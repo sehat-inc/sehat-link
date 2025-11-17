@@ -1,11 +1,12 @@
 import os
+import hashlib
+import bcrypt
 from datetime import datetime, timedelta, timezone
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer
 from jose import JWTError, jwt
-from passlib.context import CryptContext
 from dotenv import load_dotenv
 
 from models import TokenData
@@ -17,13 +18,18 @@ ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 1 day
 
 # --- Password Hashing ---
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+def hash_password(password: str) -> str:
+    # Bcrypt has a 72-byte limit, use SHA-256 for longer passwords
+    if len(password.encode('utf-8')) > 72:
+        password = hashlib.sha256(password.encode('utf-8')).hexdigest()
+    salt = bcrypt.gensalt()
+    return bcrypt.hashpw(password.encode('utf-8'), salt).decode('utf-8')
 
-def hash_password(password: str):
-    return pwd_context.hash(password)
-
-def verify_password(plain: str, hashed: str):
-    return pwd_context.verify(plain, hashed)
+def verify_password(plain: str, hashed: str) -> bool:
+    # Bcrypt has a 72-byte limit, use SHA-256 for longer passwords
+    if len(plain.encode('utf-8')) > 72:
+        plain = hashlib.sha256(plain.encode('utf-8')).hexdigest()
+    return bcrypt.checkpw(plain.encode('utf-8'), hashed.encode('utf-8'))
 
 # --- JWT Handling ---
 oauth2_scheme = HTTPBearer()  # use this for any user type

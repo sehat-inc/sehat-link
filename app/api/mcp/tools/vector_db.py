@@ -57,11 +57,11 @@ class PineconeQuery:
 
     async def smart_query(
         self,
+        ctx: Context,
         question: Annotated[str, Field(description="The question or query to answer")],
         top_k_per_query: Annotated[int, Field(description="Amount of chunks to retrieve per query", ge=1, le=10)] = 5,
         namespace: Annotated[str, Field(description="Pinecone namespace to query")] = "eligibility-namespace",
         decompose: Annotated[bool, Field(description="Whether to decompose the question into multiple queries")] = True,
-        ctx: Context = None
     ) -> Dict:
         """
         Decomposes a complex question into sub-queries or executes a direct query.
@@ -86,7 +86,11 @@ class PineconeQuery:
 
         try:
             decomposition_prompt = decompose_prompt(question)
-            decomposition_response = await ctx.sample(decomposition_prompt)
+            decomposition_response = await ctx.sample(
+                messages=decomposition_prompt,
+                model_preferences=["gemini-2.5-flash", "gpt4o-mini"],
+                temperature=0.5
+            )
             decomposition_text = decomposition_response.text.strip()
             
             if "```json" in decomposition_text:
@@ -122,6 +126,7 @@ class PineconeQuery:
                 await ctx.debug(f"Executing Query: {sub_query}")
             
             query_vector = self._embed_text(sub_query)
+            await ctx.info(f"VECTOR 1: {query_vector}")
             results = self._query_pinecone(query_vector, top_k_per_query, namespace)
             all_results[sub_query] = {
                 "purpose": purpose,
@@ -144,10 +149,10 @@ class PineconeQuery:
 
     async def direct_query(
         self,
+        ctx: Context,
         query: Annotated[str, Field(description="Search query")],
         top_k: Annotated[int, Field(description="Number of results", ge=1, le=15)] = 5,
         namespace: Annotated[str, Field(description="Pinecone namespace")] = "eligibility-namespace",
-        ctx: Context = None
     ) -> List[Dict]:
         """
         Direct, simple query to Pinecone without any decomposition.
