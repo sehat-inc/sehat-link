@@ -4,7 +4,7 @@ from typing import Annotated, List, Dict
 from pydantic import Field
 from openai import OpenAI
 from pinecone import Pinecone
-from api.mcp.prompts.decompose import decompose_prompt
+from app.api.mcp.prompts.decompose import decompose_prompt
 from fastmcp import Context
 
 class PineconeQuery:

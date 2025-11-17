@@ -61,13 +61,13 @@ except (ImportError, ModuleNotFoundError):
 
 async def main():
     """Main function to run the tests for the medical knowledge base."""
-    pinecone_api_key = os.getenv("PINECONE_API_KEY")
+    pinecone_api_key = os.getenv("PINECONE_API")
     # Fetch the OPENAI_API_KEY as it is required by the PineconeQuery constructor
     openai_api_key = os.getenv("OPENAI_API_KEY") 
     
     # --- Configuration for the Medical Index ---
-    index_name = "medical-kb"
-    namespace = "medical-kb-namespace" 
+    index_name = "analytics-agent-kb"
+    namespace = "__default__" 
 
     # Check that BOTH keys are present
     if not all([pinecone_api_key, openai_api_key]):
