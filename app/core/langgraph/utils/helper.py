@@ -9,7 +9,7 @@ NODE_STREAMING_MODE = {
 def safe_str(x):
     if isinstance(x, str): 
         return x
-    elif hasattr(x, "content"):
+    if hasattr(x, "content"):
         return str(x.content)
     elif hasattr(x, "text"):
         return str(x.text)

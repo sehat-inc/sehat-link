@@ -141,19 +141,22 @@ async def chat_socket(socket: WebSocket):
                     final_response = ai_msgs[-1].content if ai_msgs else None
                     logger.info(f"FINAL RESPONSE: {final_response}")
                     r_agent = result.get("current_agent", "Unknown")
-                    logger.info(f"Current Agent: {r_agent}")
-                    # if isinstance(r_agent, list):
-                    #     r_agent = r_agent[-1] if r_agent else "Unknown"
+                    logger.info(f"CURRENT AGENT: {r_agent}")
+                    bridge_ai_msgs = [m for m in result["bridge_messages"] if isinstance(m, AIMessage)]
+                    final_llm_comment = bridge_ai_msgs[-1].content if bridge_ai_msgs else None
                 else:
                     logger.error(f"Result is None")
                     r_agent = "Unknown"
                     final_response = "Error 404"
+                    final_llm_comment = "Error 404"
+
 
                 
                 logger.info(f"RESULT: {result}")
 
                 # Send response back to client
                 response_payload = {
+                    "extra_comment": final_llm_comment,
                     "response": final_response,
                     "agent": r_agent
                 }

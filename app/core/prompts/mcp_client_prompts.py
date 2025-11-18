@@ -43,6 +43,7 @@ def symptom_agent_prompt(state: MedicalAgentState):
     - **Age:** {state['user_age']}
     - **Gender:** {state['user_gender']}
     - **Preferred Language:** {state['detected_language']}
+    - **(Optional can be None) Research About Symptoms** {state['symptom_research_result']}
     - **(Optional can be None) Allergies:** {state['allergies']}
     - **(Optional can be None) Chronic Conditions:** {state['chronic_conditions']}
     - **(Optional can be None) Current Symptoms:** {state['symptoms_collected']}

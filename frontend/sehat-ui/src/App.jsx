@@ -69,8 +69,21 @@ function App() {
         const ws = new WebSocket("ws://localhost:8000/ws/chat");
 
         ws.onmessage = (e) => {
-          const data = JSON.parse(e.data)
-          setMessages((prev) => [...prev, { from: "agent", text: data.response}]);
+          const data = JSON.parse(e.data);
+          if (data.response) {
+            setMessages((prev) => [...prev, { from: "agent", type: "normal", text: data.response}]);
+          } else if (data.message) {
+              setMessages((prev) => [...prev, { from: "agent", type: "normal", text: data.message }]);
+          }
+          
+          if (data.bridge_messages && Array.isArray(data.bridge_messages)) {
+              data.bridge_messages.forEach((bm) => {
+                  const text = bm.content || bm;
+                  setMessages((prev) => [...prev, { from: "agent", type: "extra", text }]);
+              });
+          } else if (data.extra_response) {
+            setMessages((prev) => [...prev, { from: "agent", type: "extra", text: data.extra_response }]);
+          }
         };
         
         ws.onerror = (error) => {
@@ -164,7 +177,13 @@ function App() {
         }}
       >
         {messages.map((m, i) => (
-          <div key={i}>
+          <div key={i} 
+            className={
+                m.type == "extra"
+                    ? "text-left my-2 text-gray-500 italic"
+                    : "text-left my-2"
+
+            }>
             <b>{m.from}:</b> {m.text}
           </div>
         ))}

@@ -1,6 +1,8 @@
 from typing import Dict, Any, Union, AsyncGenerator
 import json
 from langchain_core.messages import AIMessage, HumanMessage
+from typing_extensions import TypedDict
+from pydantic import BaseModel, Field
 
 from core.langgraph.utils.base_node import Node
 from core.langgraph.utils.state import MedicalAgentState
@@ -15,6 +17,13 @@ logger = get_logger("FRONTEND AGENT")
 
 MAX_MEMORY = 6
 
+class FrontendFeedback(BaseModel):
+    response: str = Field(description="The calm and empathetic response to the user's query")
+    symptom_trigger: bool = Field(description="True if handoff to Symptom agent should occur else false")
+    programme_trigger: bool = Field(description="True if handoff to Symptom agent should occur else false")
+
+
+
 class FrontendNode(Node):
     """
     This is the first Node that the user will talk to. Does all basic UX
@@ -24,25 +33,24 @@ class FrontendNode(Node):
         super().__init__(name=name, temperature=temperature)
     
 
-    async def generate_response(self, system_prompt: str, user_prompt: str, streaming: bool = False
-                               ) -> Union[str, AsyncGenerator[str, None]]:
+    async def generate_response(self, system_prompt: str, user_prompt: str, streaming: bool = False) -> Union[str, AsyncGenerator[str, None]]:
         """
         Unified generator wrapper:
          - if streaming==True: returns an async generator (stream of token strings)
          - if False: returns the final response string (awaitable)
         NOTE: this method returns either a string or async generator. Caller must detect which.
         """
-        # normalized messages structure expected by ChatGoogleGenerativeAI
         messages = [
             ("system", system_prompt), 
             ("user", user_prompt)
         ]
 
         if not streaming:
-            # single-shot completion using your existing ainvoke wrapper
-            # Use the base Node.ainvoke which wraps self.llm.ainvoke
-            # (your ainvoke takes system prompt and user prompt)
-            resp = await self.ainvoke(system_prompt, user_prompt)
+            structured_llm = self.llm.with_structured_output(
+                schema=FrontendFeedback.model_json_schema(), method="json_schema"
+            )
+            resp = structured_llm.ainvoke(messages)
+            #resp = await self.ainvoke(system_prompt, user_prompt)
             return safe_str(resp)
 
         # streaming path: return an async generator that yields token strings
@@ -73,8 +81,19 @@ class FrontendNode(Node):
        
         user_prompt = f"User's last 3 text\n{msgs_text}\nReturn the output described above for the LAST user message"
         
+        logger.info(f"LAST MESSAGES: {msgs_text}")
+        
+        messages = [
+            ("system", system_prompt), 
+            ("user", user_prompt)
+        ]
+
         try:
-            response = await self.ainvoke(system_prompt, user_prompt) 
+            structured_llm = self.llm.with_structured_output(
+                schema=FrontendFeedback.model_json_schema(), method="json_schema"
+            )
+            response = await structured_llm.ainvoke(messages)
+
         except Exception as e:
             print(f"Frontend Error: {e}")
             response = "I'm sorry, I encountered a technical issue. Could you please repeat that?"
@@ -92,77 +111,43 @@ class FrontendNode(Node):
             }
         }
         
-        logger.info("Starting FRONTEND Parsing")
-        if "<response>" in response and "</response" in response:
-            start = response.find("<response") + len("<response>")
-            end = response.find("</response>")
-            result["response_text"] = response[start:end].strip()
-            logger.info(f"RESULT: {result['response_text']}")
 
-        # Extract symptoms JSON
-        logger.info("Starting Routing FRONTEND Parsing")
-        if "<router>" in response and "</router>" in response:
-            start = response.find("<router>") + len("<router>")
-            end = response.find("</router>")
-            symptoms_json = response[start:end].strip()
-            try:
-                result["router"] = json.loads(symptoms_json)
-            except json.JSONDecodeError as e:
-                logger.warning(f"Failed to parse symptoms JSON: {e}")
-                result["router"] = {
-                    "symptom_trigger": False,
-                    "programme_trigger": False
-                }
-
-        # start = response.rfind("{")
-        # if start != -1:
-        #     try:
-        #         json_str = response[start:]
-        #         parsed = json.loads(json_str)
-        #         # This is the key: we use the text BEFORE the JSON as the reply
-        #         clean_message = response[:start].strip()
-        #         logger.info("Successfully parsed JSON and separated message.")
-        #     except json.JSONDecodeError as e:
-        #         logger.warning(f"Failed to parse JSON, using full response as message: {e}")
-        
-        
-        clean_message = result["response_text"]
-        routers = result["router"]
-        symptom_trigger = bool(routers.get("symptom_trigger"))
-        programme_trigger = bool(routers.get("programme_trigger"))
+        symptom_trigger = response["symptom_trigger"] 
+        programme_trigger = response["programme_trigger"] 
+        logger.info(f"TRIGGERS-----------\nSYMPTOM: {symptom_trigger}\nPROGRAM: {programme_trigger}")
 
         delta: Dict[str, Any] = {}
         
 
-        if symptom_trigger:
+        if symptom_trigger == True: 
             bridging_message = (
                 "I hear you — thank you for telling me that. "
                 "I'm going to pass this to our clinical intake specialist who will ask a few focused questions to understand your symptoms better. "
                 "They will take it from here."
                 "If this is an emergency, please say so or call your local emergency number immediately."
             )
-
-            delta["messages"] = [
+            delta["bridge_messages"] = [
                 AIMessage(
-                    content=bridging_message,
-                    additional_kwargs={"structured":parsed}
-                )]
+                    content=bridging_message
+                )
+            ]
             delta["handoff_context"] = last_user_txt
             delta["current_agent"] = "symptom_agent"
+            delta["symptom_init"] = True
+            delta["symptom_trigger"] = True
 
             return delta
 
-        if programme_trigger:
+        if programme_trigger == True:
             bridging_message = (
                 "I hear you — thank you for telling me that. "
                 "I'm going to pass this to our programme specialist who will ask a few focused questions to understand your situation better. "
                 "They will take it from here."
             )
             
-            delta["messages"] = [
+            delta["bridge_messages"] = [
                 AIMessage(
-                    content=bridging_message,
-                    additional_kwargs={"structured":parsed}
+                    content=bridging_message
                 )]
             delta["handoff_context"] = last_user_txt
             delta["current_agent"] = "programme_eligibility_agent"
@@ -171,8 +156,7 @@ class FrontendNode(Node):
 
         delta["messages"] = [
             AIMessage(
-                content=clean_message,
-                additional_kwargs={"structured":parsed}
+                content=response["response"]
             )]
         delta["current_agent"] = "frontend_agent"
 

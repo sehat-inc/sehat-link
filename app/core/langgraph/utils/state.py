@@ -17,6 +17,7 @@ class MedicalAgentState(TypedDict):
     """
     # Core Conversation
     messages: Annotated[List[BaseMessage], operator.add]
+    bridge_messages: Annotated[List[BaseMessage], operator.add]
     
     # User Context (loaded from FastAPI/Supabase)
     user_id: int
@@ -43,6 +44,7 @@ class MedicalAgentState(TypedDict):
     # Symptoms (LLM-extracted from conversation)
     program_trigger: bool
     symptom_trigger: bool
+    symptom_init: bool
     symptoms_collected: Annotated[list, operator.add]  # [{symptom, severity, duration, location}]
     symptoms_summary: str  # Natural language summary
     
