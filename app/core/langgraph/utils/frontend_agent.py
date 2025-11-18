@@ -3,6 +3,7 @@ import json
 from langchain_core.messages import AIMessage, HumanMessage
 from typing_extensions import TypedDict
 from pydantic import BaseModel, Field
+
 from core.langgraph.utils.base_node import Node
 from core.langgraph.utils.state import MedicalAgentState
 from core.langgraph.utils.helper import safe_str
@@ -77,9 +78,10 @@ class FrontendNode(Node):
             last_user_txt = safe_str(last_msg_obj)
 
         system_prompt = frontend_agent_prompt(state)
+       
+        user_prompt = f"User's last 3 text\n{msgs_text}\nReturn the output described above for the LAST user message"
         
         logger.info(f"LAST MESSAGES: {msgs_text}")
-        user_prompt = f"User's last 3 text\n{msgs_text}\nReturn the output described above for the LAST user message"
         
         messages = [
             ("system", system_prompt), 
@@ -96,6 +98,19 @@ class FrontendNode(Node):
             print(f"Frontend Error: {e}")
             response = "I'm sorry, I encountered a technical issue. Could you please repeat that?"
 
+        parsed = {
+            "symptom_trigger": False,
+            "programme_trigger": False
+        }
+        
+        result = {
+            "response_text": response,
+            "router": {
+                "symptom_trigger": False,
+                "programme_trigger": False
+            }
+        }
+        
 
         symptom_trigger = response["symptom_trigger"] 
         programme_trigger = response["programme_trigger"] 
@@ -111,15 +126,11 @@ class FrontendNode(Node):
                 "They will take it from here."
                 "If this is an emergency, please say so or call your local emergency number immediately."
             )
-            delta["messages"] = [
-                AIMessage(
-                    content="I am very sorry to hear that...."
-                )
-            ]
             delta["bridge_messages"] = [
                 AIMessage(
                     content=bridging_message
-                )]
+                )
+            ]
             delta["handoff_context"] = last_user_txt
             delta["current_agent"] = "symptom_agent"
             delta["symptom_init"] = True

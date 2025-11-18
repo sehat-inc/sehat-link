@@ -4,6 +4,7 @@ from langgraph.graph import StateGraph, END, START
 from core.langgraph.utils.state import MedicalAgentState
 from core.langgraph.utils.frontend_agent import FrontendNode
 from core.langgraph.utils.language_node import LanguageDetectorNode
+from core.langgraph.utils.urgency_node import UrgencyDetectorNode
 from core.langgraph.utils.symptom_agent import SymptomAgentNode
 from core.langgraph.utils.urgency_node import UrgencyDetectorNode 
 from core.langgraph.utils.tool_manager import MCPToolManager
@@ -29,6 +30,7 @@ def frontend_to_other(state: MedicalAgentState):
         return "symptom"
     else:
         return "continue"
+
 
 
 def build_triage_agent(mcp_manager: Optional[MCPToolManager]):
@@ -62,5 +64,6 @@ def build_triage_agent(mcp_manager: Optional[MCPToolManager]):
     graph.add_edge("language", END)
     graph.add_edge("symptom", "urgency")
     graph.add_edge("urgency", END)
+
 
     return graph

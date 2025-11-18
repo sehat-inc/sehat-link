@@ -4,6 +4,9 @@ from langchain_core.messages import AIMessage, HumanMessage
 import json
 
 from pydantic import BaseModel, Field
+from langchain_core.messages import AIMessage, HumanMessage
+import json
+
 from core.langgraph.utils.base_node import Node
 from core.langgraph.utils.state import MedicalAgentState
 from core.langgraph.utils.helper import safe_str
@@ -27,6 +30,7 @@ class Symptom(BaseModel):
 class SymptomAgentFeedback(BaseModel):
     response: str = Field(description="The calm and empathetic response to the user's query")
     symptoms: Optional[List[Symptom]]
+
 
 class SymptomAgentNode(Node):
     """
@@ -99,6 +103,7 @@ class SymptomAgentNode(Node):
         symptoms_count = len([item for item in existing_symptoms if isinstance(item, dict)])
         
         logger.info(f"EXISTING SYMPTOM COUNT: {symptoms_count}")
+        logger.info(f"SymptomAgent called. Symptoms collected: {symptoms_count}")
         
         # Build system prompt
         system_prompt = symptom_agent_prompt(state)

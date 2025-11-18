@@ -16,7 +16,7 @@ from contextlib import asynccontextmanager
 import os
 import uuid
 
-from routers import doctor, patient, hospital
+from routers import doctor, patient, hospital, follow_up
 
 from api.mcp.server import mcp_app
 from core.langgraph.agent import build_triage_agent
@@ -55,6 +55,7 @@ def read_root():
 app.include_router(doctor.router)
 app.include_router(patient.router)
 app.include_router(hospital.router)
+app.include_router(follow_up.router)
 
 
 # Helper to run graph with proper state management

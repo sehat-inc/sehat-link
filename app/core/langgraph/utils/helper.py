@@ -11,7 +11,7 @@ def safe_str(x):
         return x
     if hasattr(x, "content"):
         return str(x.content)
-    if hasattr(x, "text"):
+    elif hasattr(x, "text"):
         return str(x.text)
     else:
         return str(x)
