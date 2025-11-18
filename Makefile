@@ -1,12 +1,16 @@
 .PHONY: frontend server all clean test docker
 
+REDIS_CONTAINER=redis-stack-instance
+
 frontend:
 	cd frontend/sehat-ui && npm run dev
 
 server:
+	docker exec $(REDIS_CONTAINER) redis-cli FLUSHALL
 	cd app && uvicorn main:combined_app --reload --port 8000
 
 all:
+	docker exec $(REDIS_CONTAINER) redis-cli FLUSHALL
 	make -j2 frontend server
 
 clean:

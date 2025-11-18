@@ -13,19 +13,22 @@ logger = get_logger("AGENTIC GRAPH")
 
 
 def start_router(state: MedicalAgentState):
-    if state["current_agent"] == []:
+    curr = state.get("current_agent", None)
+    if not curr:
         return "frontend"
-    elif state["current_agent"] == "frontend_agent":
+    if curr == "frontend_agent" or curr == "frontend":
         return "frontend"
-    else:
-        # state["current_agent"] == "symptom_agent":
+    if curr == "symptom_agent" or curr == "symptom":
         return "symptom"
+    # Default fallback
+    return "frontend"
 
-# def frontend_to_other(state: MedicalAgentState):
-#     if state["symptom_trigger"] == True:
-#         return "symptom"
-#     else:
-#         return "frontend"
+
+def frontend_to_other(state: MedicalAgentState):
+    if state["symptom_trigger"] == True:
+        return "symptom"
+    else:
+        return "continue"
 
 
 def build_triage_agent(mcp_manager: Optional[MCPToolManager]):
@@ -51,21 +54,13 @@ def build_triage_agent(mcp_manager: Optional[MCPToolManager]):
         start_router,
         {"frontend": "frontend", "symptom": "symptom"}
     )
-    graph.add_edge("frontend", "language")
+    graph.add_conditional_edges(
+        "frontend",
+        frontend_to_other,
+        {"symptom": "symptom", "continue": "language"}
+    )
     graph.add_edge("language", END)
     graph.add_edge("symptom", "urgency")
     graph.add_edge("urgency", END)
-    # graph.add_edge("state_init", "frontend")
-    # graph.add_edge("frontend", "language")
-    # graph.add_edge("language", END)
-    #
-    # graph.add_conditional_edges(
-    #     "frontend", 
-    #     frontend_to_other,
-    #     {"symptom": "symptom", "frontend": END}
-    # )
-    # graph.add_edge("symptom", "urgency")
-    #
-    # graph.add_edge("urgency", END)
 
     return graph
