@@ -55,4 +55,54 @@ def signup(doctor_signup_data: DoctorSignUpPayload):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to register doctor: {str(e)}")
     
-    return response.data
+    return {"message": "Doctor registered successfully", "doctor_id": response.data[0]["id"]}
+
+
+@router.post("/login", response_model=Token)
+def login_for_access_token(form_data: DoctorLogin):
+    supabase = get_supabase()
+
+    response = supabase.table("doctors").select("id, password_hash").eq("email", form_data.email).execute()
+    
+    if not response.data:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    doctor_data = response.data[0]
+    stored_hash = doctor_data["password_hash"]
+    doctor_id = doctor_data["id"]
+
+    if not verify_password(form_data.password, stored_hash):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    # Key change: Include user_type in the token payload
+    access_token = create_access_token(
+        data={"user_id": str(doctor_id), "user_type": "doctor"} 
+    )
+
+    return Token(access_token=access_token)
+
+
+@router.get("/profile")
+async def get_doctor_profile(current_user_id: Annotated[str, Depends(get_current_doctor_id)]):
+    """A protected route accessible only by authenticated Doctor users."""
+    supabase = get_supabase()
+    
+    # Use the verified doctor ID to fetch specific data
+    doctor_record = supabase.table("doctors").select("*").eq("id", current_user_id).execute()
+    
+    if not doctor_record.data:
+        raise HTTPException(status_code=404, detail="Doctor data not found")
+
+    return {
+        "message": "Authenticated doctor profile data retrieved.", 
+        "doctor_id": current_user_id,
+        "profile": doctor_record.data[0]
+    }
