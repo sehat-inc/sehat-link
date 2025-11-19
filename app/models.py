@@ -34,6 +34,7 @@ class PatientDB(BaseModel):
     dob: Optional[date] = None
     gender: Optional[str] = None
     city: Optional[str] = None
+    domicile_location: Optional[str] = None
     last_hospital_visit: Optional[str] = None
     chronic_conditions: Optional[List[str]] = Field(default_factory=list)
     allergies: Optional[List[str]] = Field(default_factory=list)
@@ -78,6 +79,7 @@ class PatientSignUp(BaseModel):
     dob: Optional[date] = None
     gender: Optional[str] = None
     city: Optional[str] = None
+    domicile_location: Optional[str] = None  # NEW FIELD
     last_hospital_visit: Optional[str] = None
     chronic_conditions: Optional[List[str]] = Field(default_factory=list)
     allergies: Optional[List[str]] = Field(default_factory=list)

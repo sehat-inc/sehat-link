@@ -1,10 +1,55 @@
-from typing import Annotated
+from typing import Annotated, Any, Dict, Optional
 
 from fastapi import APIRouter, HTTPException, status, Depends
+import json
+import uuid
 
-from app.auth_utils import hash_password, verify_password, create_access_token, get_current_user_id
-from app.database import get_supabase
-from app.models import PatientSignUp, PatientLogin, Token
+from auth_utils import hash_password, verify_password, create_access_token, get_current_user_id
+from database import get_supabase, fetch_longterm_by_user_id
+from models import PatientSignUp, PatientLogin, Token
+
+from core.langgraph.utils.state import MedicalAgentState, MedicalAgentSession
+from core.logging import get_logger
+
+def safe_str(x):
+    if isinstance(x, str): 
+        return x
+    else: 
+        return str(x)
+
+    if hasattr(x, "content"):
+        return str(x.content)
+    if hasattr(x, "text"):
+        return str(x.text)
+    return str(x)
+
+def safe_int(value, default=None):
+    if value is None:
+        return default
+    try:
+        return int(value)
+    except (ValueError, TypeError):
+        return default
+
+def safe_list(value, default=None):
+    if value is None:
+        return default or []
+    if isinstance(value, str):
+        try:
+            return json.loads(value)
+        except:
+            return default or []
+    elif isinstance(value, list):
+        return value
+    else:
+        return default or []
+
+def safe_bool(value, default=False):
+    if value is None:
+        return default
+    return bool(value)
+
+logger = get_logger("PATIENT ROUTER")
 
 router = APIRouter(prefix="/patient", tags=["Patient"])
 
@@ -72,6 +117,110 @@ def login_for_access_token(form_data: PatientLogin):
     return Token(access_token=access_token)
 
 
+async def load_initial_state_from_db(user_id: int) -> MedicalAgentState:
+    """Load initial state from database"""
+    
+    try:
+        supabase = get_supabase()
+        resp = supabase.table("longterm_session").select("*").eq("user_id", int(user_id)).execute()
+    except Exception as e:
+        logger.error(f"Error in getting supabase longterm session: {e}")
+        
+
+    if not resp.data:
+        raise ValueError(f"No session data found for user {user_id}")
+   
+        
+    row: Dict[str, Any] = resp.data[0]
+    state: MedicalAgentState = {
+        "messages": [],
+        "user_id": safe_int(row.get("user_id"), 0),
+        "user_name": safe_str(row.get("user_name")),
+        "user_age": safe_int(row.get("user_age")),
+        "user_gender": safe_str(row.get("user_gender")),
+        "user_location": safe_str(row.get("user_location", "")), 
+        "user_domicile_location": safe_str(row.get("user_domicile_location")),
+        "user_phone": safe_str(row.get("user_phone")),
+        "preferred_language": safe_str(row.get("preferred_language", "en")),
+
+        # Medical History
+        "chronic_conditions": safe_list(row.get("chronic_conditions"), []),
+        "allergies": safe_list(row.get("allergies"), []),
+        "current_medications": safe_list(row.get("current_medications"), []),
+        
+        # LLM-Detected Context
+        "detected_language": safe_str(row.get("detected_language", "en")),
+        "detected_urgency": row.get("detected_urgency", "Medium"),
+        "detected_problem_type": safe_str(row.get("detected_problem_type", "")), 
+
+        # Symptoms
+        "symptom_trigger": False,
+        "symptoms_collected": safe_list(row.get("symptoms_collected"), []),
+        "symptoms_summary": safe_str(row.get("symptoms_summary")),
+
+        # MCP Tool Results
+        "symptom_research_result": safe_list(row.get("symptom_research_result")),
+        "similar_cases": safe_list(row.get("similar_cases"), []),
+
+        # Agent Coordination
+        "current_agent": [],
+        "previous_agent": "",
+        "handoff_context": "",
+
+        # Agent Flags
+        "triage_complete": safe_bool(row.get("triage_complete"), False),
+        "sufficient_symptom_data": safe_bool(row.get("sufficient_symptom_data"), False),
+        "requires_deep_research": safe_bool(row.get("requires_deep_research"), False),
+
+        # Shared Knowledge
+        "shared_facts": safe_list(row.get("shared_facts"), []),
+        "shared_warnings": safe_list(row.get("shared_warnings"), []),
+        "red_flags": safe_list(row.get("red_flags"), []),
+
+    }
+    
+    return state
+
+async def ensure_user_session_exists(user_id: int, supabase):
+    """
+    Create and Initial session if it doesnt exist in db
+    """
+    
+    try:
+        longterm_resp = supabase.table("longterm_session").select("*").eq("user_id", user_id).execute()
+        longterm_data = getattr(longterm_resp, "data", None)
+
+        logger.info(longterm_data)
+    except Exception as e:
+        logger.error(f"Error getting longterm session: {e}")
+        return
+
+    if not longterm_data:
+        try:
+            patient_record = supabase.table("patients").select("*").eq("id", user_id).execute()
+            patient_data = patient_record.data[0]
+            new_row = {
+                "user_id": user_id,
+                "user_name": patient_data.get("name"),
+                "user_age": patient_data.get("age"),
+                "user_gender": patient_data.get("gender"),
+                "user_location": patient_data.get("location"),
+                "user_domicile_location": patient_data.get("domicile_location"),
+                "user_phone": patient_data.get("phone"),
+                "preferred_language": patient_data.get("preferred_language", "en"),
+            }
+
+            insert_resp = supabase.table("longterm_session").insert(new_row).execute()
+            data = getattr(insert_resp, "data", [new_row])  
+        except Exception as e:
+            logger.error(f"Error in Setting new Patient Record in Fallback: {e}")
+            return
+    else:
+        data = longterm_data
+
+    logger.info(f"DATA AFTER ENSURANCE: {data}")
+
+
 @router.get("/chat-start")
 async def start_ai_chat_session(current_user_id: Annotated[str, Depends(get_current_user_id)]):
     """
@@ -84,20 +233,11 @@ async def start_ai_chat_session(current_user_id: Annotated[str, Depends(get_curr
     
     if not patient_record.data:
         raise HTTPException(status_code=404, detail="Patient data not found")
-
-    patient_data = patient_record.data[0]
     
-    # This is the context the AI agent needs to maintain state and provide accurate recommendations.
-    ai_context = {
-        "user_id": current_user_id,
-        "name": patient_data.get("name"),
-        "chronic_conditions": patient_data.get("chronic_conditions"),
-        "allergies": patient_data.get("allergies"),
-        "language_preferred": patient_data.get("language_preferred")
-    }
-
+    
+    await ensure_user_session_exists(int(current_user_id), supabase)
+    
     return {
         "message": "Authenticated. AI chat session initiated.", 
-        "user_id": current_user_id,
-        "ai_data_context": ai_context
+        "user_id": int(current_user_id)
     }
