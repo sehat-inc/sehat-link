@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 import os
 from openai import OpenAI
 
-from api.mcp.tools.vector_db import PineconeQuery
+from .tools.vector_db import PineconeQuery
 
 load_dotenv()
 
@@ -31,7 +31,7 @@ pc_ctx_tool2 = PineconeQuery(str(PINECONE_API), str(OPENAI_API_KEY), str(PC_INDE
 
 mcp.tool(
     pc_ctx_tool.smart_query,
-    name="Symptom Knowledge Base Smart Query",
+    name="Symptom_Knowledge_Base_Smart_Query",
     description="""Intelligently query Pinecone by first breaking down complex questions
     into sub-queries, then aggregating results. Uses LLM to decompose questions.""",
     annotations={
@@ -42,13 +42,13 @@ mcp.tool(
 
 mcp.tool(
     pc_ctx_tool.direct_query,
-    name="Symptom Knowledge Base Direct Query",
+    name="Symptom_Knowledge_Base_Direct_Query",
     description="Direct Pinecone query without decomposition for simple lookups"
 )
 
 mcp.tool(
     pc_ctx_tool2.smart_query,
-    name="Programme Eligibility KB Smart Query",
+    name="Programme_Eligibility_KB_Smart_Query",
     description="""Intelligently query Pinecone by first breaking down complex questions
     into sub-queries, then aggregating results. Uses LLM to decompose questions.""",
     annotations={
@@ -59,7 +59,7 @@ mcp.tool(
 
 mcp.tool(
     pc_ctx_tool2.direct_query,
-    name="Programme Eligibility KB Direct Query",
+    name="Programme_Eligibility_KB_Direct_Query",
     description="Direct Pinecone query without decomposition for simple lookups"
 )
 

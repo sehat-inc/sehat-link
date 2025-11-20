@@ -1,6 +1,7 @@
 #USER DEFINED HERE
 
 tests/
+*.png
 test.py
 scripts/
 notes.md

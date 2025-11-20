@@ -35,18 +35,6 @@ logger.info(f"REDIS_URL: {REDIS_URL}")
 
 app = FastAPI()
 
-@app.middleware("http")
-async def debug_request_middleware(request: Request, call_next):
-    print("--- REQUEST RECEIVED ---")
-    print(f"PATH: {request.url.path}")
-    print("HEADERS:")
-    for name, value in request.headers.items():
-        print(f"  {name}: {value}")
-    print("------------------------")
-    
-    response = await call_next(request)
-    return response
-
 @app.get("/")
 def read_root():
     return {"Hello from Sehat-Link API!"}
@@ -73,6 +61,9 @@ async def run_graph_for_user(builder, user_id: int, user_message: str):
     async with AsyncRedisSaver.from_conn_string(REDIS_URL) as checkpointer:
         await checkpointer.asetup()
         graph = builder.compile(checkpointer=checkpointer)
+        png_bytes = graph.get_graph(xray=True).draw_mermaid_png()
+        with open("graph.png", "wb") as f:
+            f.write(png_bytes)
         try:
 
             current_state = await graph.aget_state(config)
@@ -94,7 +85,8 @@ async def run_graph_for_user(builder, user_id: int, user_message: str):
         
         updated_state = {
             **state_values,
-            "messages": [HumanMessage(content=user_message)]
+            "user_messages": [HumanMessage(content=user_message)],
+            "messages":[HumanMessage(content=user_message)]
         }
         
         logger.info(f"UPDATED STATE: {updated_state}")
@@ -110,10 +102,18 @@ async def chat_socket(socket: WebSocket):
     """
     await socket.accept()
     
-    mcp_manager = MCPToolManager()
-    await mcp_manager.initialize()
-    graph = build_triage_agent(mcp_manager)
+    graph = build_triage_agent()
     logger.info("Graph Built")
+
+    def extract_text(message: AIMessage) -> str:
+        c = message.content
+        if isinstance(c, list) and len(c) > 0:
+            first = c[0]
+            if isinstance(first, dict):
+                return first.get("text", "")
+            if isinstance(first, str):
+                return first
+        return str(c)
 
     try:
         while True:
@@ -138,8 +138,8 @@ async def chat_socket(socket: WebSocket):
                 logger.info("Ran Graph")
                 
                 if result is not None:
-                    ai_msgs = [m for m in result["messages"] if isinstance(m, AIMessage)]
-                    final_response = ai_msgs[-1].content if ai_msgs else None
+                    ai_msgs = [m for m in result["user_messages"] if isinstance(m, AIMessage)]
+                    final_response = extract_text(ai_msgs[-1]) if ai_msgs else None
                     logger.info(f"FINAL RESPONSE: {final_response}")
                     r_agent = result.get("current_agent", "Unknown")
                     logger.info(f"CURRENT AGENT: {r_agent}")

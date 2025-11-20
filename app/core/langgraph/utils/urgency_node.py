@@ -16,9 +16,9 @@ class UrgencyDetectorNode(Node):
         detected_urgency: Literal["Emergency", "High", "Medium", "Low"]
     """
     def __init__(self, name: str = "urgency_detector", temperature: float = 0.6):
-        super().__init__(name=name, temperature=temperature)
-
-    async def __call__(self, state: MedicalAgentState) -> Dict[str, Any]:
+        super().__init__(name=name, temperature=temperature, allowed_tools=None)
+        
+    async def create_urgency_agent(self, state: MedicalAgentState):
         
         symptoms = state.get("symptoms_collected", [])
 

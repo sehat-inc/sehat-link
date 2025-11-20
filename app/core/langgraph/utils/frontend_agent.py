@@ -1,8 +1,9 @@
 from typing import Dict, Any, Union, AsyncGenerator
 import json
-from langchain_core.messages import AIMessage, HumanMessage
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from typing_extensions import TypedDict
 from pydantic import BaseModel, Field
+from langchain_mcp_adapters.client import MultiServerMCPClient
 
 from core.langgraph.utils.base_node import Node
 from core.langgraph.utils.state import MedicalAgentState
@@ -12,154 +13,127 @@ from core.logging import get_logger
 from core.langgraph.utils.helper import (
     safe_str
 )
+import re
+import json
 
-logger = get_logger("FRONTEND AGENT")
-
-MAX_MEMORY = 6
 
 class FrontendFeedback(BaseModel):
     response: str = Field(description="The calm and empathetic response to the user's query")
     symptom_trigger: bool = Field(description="True if handoff to Symptom agent should occur else false")
-    programme_trigger: bool = Field(description="True if handoff to Symptom agent should occur else false")
+    programme_trigger: bool = Field(description="True if handoff to Programme agent should occur else false")
 
+logger = get_logger("FRONTEND AGENT")
 
-
-class FrontendNode(Node):
+class TriageAgent(Node):
     """
-    This is the first Node that the user will talk to. Does all basic UX
-    however, has no specializations and cannot give any medical recommendaitons.
+    Main Triage Agent that will initialize conversation with the user.
     """
-    def __init__(self, name: str = "frontend_agent", temperature: float = 0.7):
+    def __init__(self,
+                 name: str = "triage_agent",
+                 temperature: float = 0.7):
         super().__init__(name=name, temperature=temperature)
     
-
-    async def generate_response(self, system_prompt: str, user_prompt: str, streaming: bool = False) -> Union[str, AsyncGenerator[str, None]]:
+    
+    async def run(self, state: MedicalAgentState):
         """
-        Unified generator wrapper:
-         - if streaming==True: returns an async generator (stream of token strings)
-         - if False: returns the final response string (awaitable)
-        NOTE: this method returns either a string or async generator. Caller must detect which.
+        Execution Logic
         """
-        messages = [
-            ("system", system_prompt), 
-            ("user", user_prompt)
-        ]
-
-        if not streaming:
-            structured_llm = self.llm.with_structured_output(
-                schema=FrontendFeedback.model_json_schema(), method="json_schema"
-            )
-            resp = structured_llm.ainvoke(messages)
-            #resp = await self.ainvoke(system_prompt, user_prompt)
-            return safe_str(resp)
-
-        # streaming path: return an async generator that yields token strings
-        async def _stream_gen():
-            # docs show: async for chunk in (await llm.astream(messages))
-            stream_iter = self.astream(messages)
-            async for chunk in stream_iter:
-                # defensive canonicalization of token text from chunk
-                token = getattr(chunk, "delta", None) or getattr(chunk, "content", None) or getattr(chunk, "text", None)
-                if token is None:
-                    token = str(chunk)
-                yield str(token)
-        return _stream_gen()
-
-
-    async def __call__(self, state: MedicalAgentState) -> Dict[str, Any]:
-        recent_msgs = state["messages"][-3:]
-        msgs_text = "\n".join(safe_str(m) for m in recent_msgs)
+        delta = {}
         
-        # Getting the Last Message for Hand-off
-        last_msg_obj = state.get("messages", [])[-1] if state.get("messages") else None
-        last_user_txt = ""
+        client = MultiServerMCPClient({
+            "sehat-link": {
+                "transport": "streamable_http",
+                "url": "http://localhost:8000/mcp",
+            }
+        })
 
-        if last_msg_obj is not None:
-            last_user_txt = safe_str(last_msg_obj)
+        # Bind Tools with Model (VERY IMPORTANT)
+        tools = await client.get_tools()
+        model_with_tools = self.llm.bind_tools(tools)
+        
 
+        # Prepare Messages
+        messages = list(state["user_messages"])
         system_prompt = frontend_agent_prompt(state)
-       
-        user_prompt = f"User's last 3 text\n{msgs_text}\nReturn the output described above for the LAST user message"
+        if len(messages) == 1 and isinstance(messages[0], HumanMessage):
+            system_message = SystemMessage(content=system_prompt)
+            messages = [system_message] + messages
+        else:
+            system_message = [SystemMessage(content=system_prompt)] + messages
+
+        response = await model_with_tools.ainvoke(messages)
+    
+        logger.info(f"First LLM: {response}")
+
+        # Last User Message 
+        last_user_msg = messages[-1].content if messages else ""
         
-        logger.info(f"LAST MESSAGES: {msgs_text}")
-        
-        messages = [
-            ("system", system_prompt), 
-            ("user", user_prompt)
-        ]
+        routing_prompt=f"""
+        You are responsible for analyzing the conversation and determining the routing as well 
+        as structured output by parsing the main content of the information.
+        Rules:
+        - Set `"symptom_trigger": true` ONLY if the user mentions symptoms or a health concern.
+        - Set `"programme_trigger": true` ONLY if the user mentions healthcare programmes, insurance, or eligibility.
+        - If both are irrelevant → both should be false.
+        - **You must NEVER set both to true at the same time.**
+
+        USER LAST MESSAGE: {last_user_msg}
+
+        ASSISTANT RESPONSE: {response}
+
+        We need the output in the following format:
+
+        {{
+            "response": The response given by the assistant. Make sure the main text as is.
+            "symptom_trigger": true | false
+            "programme_trigger": true | false
+        }}
+
+        You do NOT need to mention routing or state changes to the user — just produce the correct structured output.
+        """
 
         try:
             structured_llm = self.llm.with_structured_output(
                 schema=FrontendFeedback.model_json_schema(), method="json_schema"
             )
             response = await structured_llm.ainvoke(messages)
-
+            
+            logger.info(f"SECOND LLM RESPONSE: {response}")
+            
         except Exception as e:
             print(f"Frontend Error: {e}")
             response = "I'm sorry, I encountered a technical issue. Could you please repeat that?"
-
-        parsed = {
-            "symptom_trigger": False,
-            "programme_trigger": False
-        }
-        
-        result = {
-            "response_text": response,
-            "router": {
-                "symptom_trigger": False,
-                "programme_trigger": False
-            }
-        }
-        
+    
 
         symptom_trigger = response["symptom_trigger"] 
         programme_trigger = response["programme_trigger"] 
         logger.info(f"TRIGGERS-----------\nSYMPTOM: {symptom_trigger}\nPROGRAM: {programme_trigger}")
+       
 
-        delta: Dict[str, Any] = {}
+        response_text = response["response"]
         
-
-        if symptom_trigger == True: 
-            bridging_message = (
-                "I hear you — thank you for telling me that. "
-                "I'm going to pass this to our clinical intake specialist who will ask a few focused questions to understand your symptoms better. "
-                "They will take it from here."
-                "If this is an emergency, please say so or call your local emergency number immediately."
-            )
-            delta["bridge_messages"] = [
-                AIMessage(
-                    content=bridging_message
-                )
-            ]
-            delta["handoff_context"] = last_user_txt
+        if symptom_trigger == True or symptom_trigger == "True":
             delta["current_agent"] = "symptom_agent"
             delta["symptom_init"] = True
             delta["symptom_trigger"] = True
-
-            return delta
-
-        if programme_trigger == True:
-            bridging_message = (
-                "I hear you — thank you for telling me that. "
-                "I'm going to pass this to our programme specialist who will ask a few focused questions to understand your situation better. "
-                "They will take it from here."
-            )
             
-            delta["bridge_messages"] = [
-                AIMessage(
-                    content=bridging_message
-                )]
-            delta["handoff_context"] = last_user_txt
-            delta["current_agent"] = "programme_eligibility_agent"
-
             return delta
 
+        if programme_trigger == True or programme_trigger == "True":
+            delta["current_agent"] = "programme_eligibility_agent"
+            
+            return delta
+        
         delta["messages"] = [
             AIMessage(
-                content=response["response"]
-            )]
-        delta["current_agent"] = "frontend_agent"
+                content=response_text
+            )
+        ]
+        delta["user_messages"] = [
+            AIMessage(
+                content=response_text
+            )
+        ]
 
+        
         return delta
-
-
