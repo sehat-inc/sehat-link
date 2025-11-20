@@ -1,12 +1,13 @@
 from typing import Dict, Any, Optional, Union, AsyncGenerator, List
+from langchain.agents import create_agent
 from langchain_core import messages
-from langchain_core.messages import AIMessage, HumanMessage
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 import json
+from langchain_mcp_adapters.client import MultiServerMCPClient
 
 from pydantic import BaseModel, Field
-from langchain_core.messages import AIMessage, HumanMessage
-import json
 
+from langchain.tools import ToolRuntime
 from core.langgraph.utils.base_node import Node
 from core.langgraph.utils.state import MedicalAgentState
 from core.langgraph.utils.helper import safe_str
@@ -20,6 +21,7 @@ from core.langgraph.utils.helper import (
 
 logger = get_logger("SYMPTOM AGENT")
 
+
 class Symptom(BaseModel):
     symptom: Optional[str] = Field(description="The name of the symptom")
     duration: Optional[str] = Field(description="The duration of how long the symptom have occured")
@@ -30,7 +32,7 @@ class Symptom(BaseModel):
 class SymptomAgentFeedback(BaseModel):
     response: str = Field(description="The calm and empathetic response to the user's query")
     symptoms: Optional[List[Symptom]]
-
+    programme_trigger: bool = Field(description="True if handoff to Programme agent should occur else false")
 
 class SymptomAgentNode(Node):
     """
@@ -38,172 +40,97 @@ class SymptomAgentNode(Node):
     choose whether to call MCP Deep Research tool
 
     """
-    def __init__(self, 
+    def __init__(self,
                  name: str = "symptom_agent", 
-                 temperature: float = 0.7, 
-                 mcp_manager: Optional[MCPToolManager] = None, 
-                 allowed_tools: List[str] = None):
-        super().__init__(name=name, temperature=temperature, mcp_manager=mcp_manager, allowed_tools=allowed_tools)
-    
-    async def _call_mcp_research(self, symptoms: List[Dict[str, Any]]) -> str:
-        """Call MCP tool for deep symptom research"""
-        if not self.has_tool_access("Symptom Knowledge Base Smart Query"):
-            logger.warning("No access to Symptom KB Smart Query tool")
-            return ""
+                 temperature: float = 0.7): 
+        super().__init__(name=name, temperature=temperature)
+       
         
-        query = f"Patient presenting with: {symptoms}. What are potential diagnoses and recommendations?"
-        
-        try:
-            logger.info(f"Calling MCP tool with query: {query}")
-            result = await self.use_mcp_tool(
-                "Symptom Knowledge Base Smart Query",
-                {
-                    "question": query,
-                    "namespace": "__default__",
-                    "decompose": True, 
-                    "top_k_per_query": 5,
-                }
-            )
-            logger.info(f"MCP tool returned: {result}")
-            return result
-        except Exception as e:
-            logger.error(f"Error calling MCP tool: {e}")
-            return ""
 
-    async def _generate_symptoms_summary(self, db_search_results) -> str:
-        """Generate natural language summary of collected symptoms"""
-        if not db_search_results:
-            return "No symptoms collected yet."
-        
-        system_prompt =f"""You are an expert summarizer of data. You escpecially know the needs of doctors and 
-        healthcare professionals and how they like to review data of patients."""
-
-        user_prompt = f"""Summarize the results of the following Vector DB Query. Organize the RESULTS ONLY.
-        CONTEXT: \n{db_search_results}
-        """
-
-        response = await self.ainvoke(system_prompt, user_prompt)
-
-        return response 
-
-    async def __call__(self, state: MedicalAgentState) -> Dict[str, Any]:
+    async def run(self, state: MedicalAgentState):
         """Main node execution"""
-        delta: Dict[str, Any] = {}
-        symptom_threshold = 3
+        
+        client = MultiServerMCPClient({
+            "sehat-link": {
+                "transport": "streamable_http",
+                "url": "http://localhost:8000/mcp",
+            }
+        })
 
-        recent_msgs = state["messages"][-10:]
-        msgs_text = "\n".join(safe_str(m) for m in recent_msgs)
 
-        
-        # Get handoff context for initial greeting
-        handoff_context = state.get("handoff_context", "")
-        
-        # Get existing symptoms
-        existing_symptoms = state.get("symptoms_collected", [])
-        symptoms_count = len([item for item in existing_symptoms if isinstance(item, dict)])
-        
-        logger.info(f"EXISTING SYMPTOM COUNT: {symptoms_count}")
-        logger.info(f"SymptomAgent called. Symptoms collected: {symptoms_count}")
-        
-        # Build system prompt
+        delta = {}
+
+        tools = await client.get_tools()
+        model_with_tools = self.llm.bind_tools(tools)
+
+        # Prepare Messages
+        messages = list(state["messages"])
         system_prompt = symptom_agent_prompt(state)
+        system_message = SystemMessage(
+            content=system_prompt
+        )
+        messages = [system_message] + messages
+
+        tool_llm_response = await model_with_tools.ainvoke(messages)
         
+        last_user_msg = messages[-1].content if messages else ""
+        
+        structured_prompt = f"""
+        You are responsible for Parsing All information given into the correct
+        format. You are also tasked with figuring out the routing as structured output
+        determined by the conversation given.
+        RULES:
+            - Set `"programme_trigger": true` ONLY if the user mentions healthcare programmes, insurance, or eligibility.
 
-        user_prompt = f"""
-        You are now responsible for attenting the patient. This is the chat history: {msgs_text}.
-        This is the main reason why you were put responsible of the patient: "{handoff_context}". 
-
-        Start by acknowledging what they shared, then ask ONE focused follow-up question to understand their symptoms better.
-        Extract any symptoms mentioned in their original message.
+        USER RESPONSE: {last_user_msg}
+        ASSISTANT RESPONSE: {tool_llm_response}
+        "response": "The response given the LLM lastly" 
+        "programme_trigger": true | false
+        {{
+            "symptom": "headache",
+            "severity": "moderate",
+            "duration": "3 days",
+            "location": "temples",
+            "additional_details": "worse in morning"
+        }}
         """
-        
-        try:
-            # Get LLM response
-            #response = await self.ainvoke(system_prompt, user_prompt)
-            
-            messages = [
-                ("system", system_prompt),
-                ("user", user_prompt)
-            ]
 
+        try:
+            struct_system_message = [SystemMessage(content=structured_prompt)] + list(state["messages"])
             structured_llm = self.llm.with_structured_output(
                 schema=SymptomAgentFeedback
             )
 
-            response = await structured_llm.ainvoke(messages)
-            
-            if isinstance(response, BaseModel):
-                parsed = response.dict()
-            elif isinstance(response, dict):
-                parsed = response
-            else:
-                raise ValueError(f"Unexpected response type: {type(response)} | {response}")
-
-            
-            response_text = parsed.get("response", "")
-            new_symptoms = parsed.get("symptoms") or []
-
-            
-            try:
-                updated_symptoms = existing_symptoms + new_symptoms
-                logger.info(f"UPDATED SYMPTOMS: {updated_symptoms}")
-            except Exception as e:
-                logger.error("Error in Appending New Symptoms")
-           
-            try:
-                # Prepare delta
-                delta["symptoms_collected"] = new_symptoms
-                delta["current_agent"] = "symptom_agent"
-            except Exception as e:
-                logger.error(f"Failed to Append Delta: {e}")
-            
-            new_symptoms_count = len([item for item in new_symptoms if isinstance(item, dict)])
-            logger.info(f"NEW SYPTOM COUNT: {new_symptoms_count}")
-
-            should_research = (int(new_symptoms_count) + int(symptoms_count)) > int(symptom_threshold)
-            
-            if should_research:
-                delta["requires_deep_research"] = True
-
-            if should_research and (state['requires_deep_research'] == True or state['requires_deep_research'] == None):
-                logger.info(f"Threshold reached symptoms. Calling MCP research...")
-                
-                # Call MCP tool
-                research_results = await self._call_mcp_research(updated_symptoms)
-                
-                # Generate summary
-                symptoms_summary = await self._generate_symptoms_summary(research_results)
-                
-                delta["symptoms_summary"] = symptoms_summary
-                delta["mcp_research_results"] = research_results
-                delta["requires_deep_research"] = False
-                
-                
-                delta["messages"] = [
-                    AIMessage(
-                        content=symptoms_summary
-                    )
-                ]
-            else:
-                # Continue collecting symptoms
-                delta["messages"] = [
-                    AIMessage(
-                        content=response_text
-                    )
-                ]
-            
-            return delta
-            
+            response = await structured_llm.ainvoke(struct_system_message)
         except Exception as e:
-            logger.error(f"SymptomAgent error: {e}", exc_info=True)
-            return {
-                "messages": [
-                    AIMessage(
-                        content="I'm sorry, I encountered an issue. Could you please repeat that?"
-                    )
-                ],
-                "current_agent": "symptom_agent"
-            } 
+            logger.error(f"Structured LLM Not Working: {e}")
+            delta["user_messages"] = [
+                AIMessage(content="Could you please repeat that again?")
+            ]
+            delta["messages"] = []   # no tool routing in error case
+            return delta
 
+        if isinstance(response, BaseModel):
+                parsed = response.dict()
+        elif isinstance(response, dict):
+            parsed = response
+        else:
+            raise ValueError(f"Unexpected response type: {type(response)} | {response}")
+
+        response_text = parsed.get("response", "")
+        new_symptoms = parsed.get("symptoms") or []
+        programme_trigger = parsed.get("programme_trigger", False)
+
+        if programme_trigger == True or programme_trigger == "True":
+            delta["current_agent"] = "programme_eligibility_agent"
+    
         
-        
+        delta["symptoms_collected"] = new_symptoms
+        delta["messages"] = [tool_llm_response]
+        delta["user_messages"] = [
+            AIMessage(
+                content=response_text
+            )
+        ]
+
+        return delta

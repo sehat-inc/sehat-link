@@ -1,8 +1,9 @@
-from typing import Any, List
-import asyncio
-from fastmcp import Client
-from fastmcp.client.transports import StreamableHttpTransport
+from langchain_core.messages import ToolMessage
+from langchain_mcp_adapters.client import MultiServerMCPClient
+from langchain_mcp_adapters.tools import load_mcp_tools
+from core.logging import get_logger
 
+logger = get_logger("TOOL MANAGER")
 
 
 class MCPToolManager:
@@ -10,42 +11,79 @@ class MCPToolManager:
     Manages MCP Server Tools and provides access to Nodes
     """
 
-    def __init__(self, mcp_url: str = "http://localhost:8000/mcp"):
-        self.transport = StreamableHttpTransport(mcp_url)
-        self.client = Client(self.transport)
-        self.tools_cache = None
+    def __init__(self, client: MultiServerMCPClient):
+        self.client = client
+        self.tools_by_name = {}
 
     async def initialize(self):
         """
         Initializes the MCP Client
         """
-        await self.client.__aenter__()
-        return self
 
-    async def close_client(self):
-        """
-        Closes the MCP Client
-        """
-        await self.client.__aexit__(None, None, None)
+        tools = await self.client.get_tools()
+        self.tools_by_name = {tool.name: tool for tool in tools}
+        logger.info(f"Initialized with {len(self.tools_by_name)} tools")
+        return tools
 
-    async def get_available_tools(self) -> List[str]:
+    async def execute_tool_calls(self, tool_calls: list) -> list[ToolMessage]:
         """
-        Get List of available tools
-        """
-        if self.tools_cache is None:
-            tools = await self.client.list_tools()
-            self.tools_cache = [tool.name for tool in tools]
-        return self.tools_cache
+        Execute multiple tool calls and return ToolMessages.
 
-    async def call_tool(self, tool_name: str, arguments: Any): 
-        """
-        Calling MCP Server Tools
-        """
-        result = await self.client.call_tool(
-            name=tool_name,
-            arguments=arguments
-        )
-        return result
+        Args:
+            tool_calls: List of tool calls dicts from AIMessage
 
+        Returns:
+            List of ToolMessage objects with results
+        """
+        tool_messages = []
 
-    
+        for tool_call in tool_calls:
+            tool_name = tool_call["name"]
+            tool_args = tool_call["args"]
+            tool_call_id = tool_call["id"]
+
+            try:
+                # Get Tool
+                tool = self.tools_by_name.get(tool_name)
+
+                if not tool:
+                    error_msg = f"Tool '{tool_name}' not found. Available tools: {list(self.tools_by_name.keys())}"
+                    logger.error(error_msg)
+                    tool_messages.append(
+                        ToolMessage(
+                            content=error_msg,
+                            tool_call_id=tool_call_id,
+                            name=tool_name,
+                            status="error"
+                        )
+                    )
+                    continue
+
+                # Execute Tool
+                logger.info(f"Executing tool: {tool_name} with args: {tool_args}")
+                result = await tool.ainvoke(tool_args)
+                
+                # Create success ToolMessage
+                tool_messages.append(
+                    ToolMessage(
+                        content=str(result),
+                        tool_call_id=tool_call_id,
+                        name=tool_name
+                    )
+                )
+                logger.info(f"Tool {tool_name} completed successfully")
+
+            except Exception as e:
+                error_msg = f"Error executing {tool_name}: {str(e)}"
+                logger.error(error_msg)
+                tool_messages.append(
+                    ToolMessage(
+                        content=error_msg,
+                        tool_call_id=tool_call_id,
+                        name=tool_name,
+                        status="error"
+                    )
+                )
+        
+        return tool_messages
+

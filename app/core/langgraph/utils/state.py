@@ -1,7 +1,9 @@
-from typing import Optional, Dict, List, Annotated, Literal, Any
+from typing import Optional, Dict, List, Annotated, Literal, Any, Sequence
 from typing_extensions import TypedDict
-from langchain_core.messages import BaseMessage
+from langchain_core.messages import BaseMessage, AnyMessage
 import operator
+
+from core.langgraph.utils.tool_manager import MCPToolManager
 
 
 def reducer(a: list, b: str | None) -> list:
@@ -16,9 +18,13 @@ class MedicalAgentState(TypedDict):
     Redis checkpointer auto-saves this state.
     """
     # Core Conversation
-    messages: Annotated[List[BaseMessage], operator.add]
-    bridge_messages: Annotated[List[BaseMessage], operator.add]
+    user_messages: Annotated[Sequence[BaseMessage] ,operator.add] 
+    messages: Annotated[Sequence[BaseMessage] ,operator.add]
+    bridge_messages: Annotated[List[AnyMessage], operator.add]
     
+    tool_call_count: int
+    error_count: int
+
     # User Context (loaded from FastAPI/Supabase)
     user_id: int
     user_name: Optional[str]
@@ -47,7 +53,8 @@ class MedicalAgentState(TypedDict):
     symptom_init: bool
     symptoms_collected: Annotated[list, operator.add]  # [{symptom, severity, duration, location}]
     symptoms_summary: str  # Natural language summary
-    
+    symptom_route: str
+
     # MCP Tool Results
     symptom_research_result: Optional[Dict]  # From MCP deep research tool
     similar_cases: List[Dict]  # From Pinecone vector search
