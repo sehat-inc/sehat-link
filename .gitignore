@@ -2,6 +2,10 @@
 
 tests/
 *.png
+test.py
+scripts/
+notes.md
+
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
