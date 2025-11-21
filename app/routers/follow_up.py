@@ -3,6 +3,7 @@ from typing import List, Dict, Any
 from datetime import date
 from database import get_supabase
 from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_core.messages import SystemMessage, HumanMessage
 import os
 from dotenv import load_dotenv
 
@@ -15,16 +16,14 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 llm = ChatGoogleGenerativeAI(
     google_api_key=GEMINI_API_KEY,
     model="gemini-2.5-flash",
-    temperature=0.7,
-    convert_system_message_to_human=True,
+    temperature=0.4, # Lower temperature for more concise/consistent outputs
 )
 
 
 @router.get("/medicine-status/{user_id}")
 async def check_medicine_status(user_id: int):
     """
-    Reads medicine_data and daily_routine tables for a user and returns 
-    personalized, LLM-generated notifications based on adherence behavior.
+    Returns personalized, short notification text based on adherence.
     """
     try:
         supabase = get_supabase()
@@ -47,7 +46,7 @@ async def check_medicine_status(user_id: int):
             return {
                 "user_id": user_id,
                 "notifications": [],
-                "summary": "No medications found for this user.",
+                "notification_text": "No medications found.",
                 "adherence_score": None
             }
 
@@ -63,12 +62,13 @@ async def check_medicine_status(user_id: int):
         )
 
         daily_records = routine_response.data or []
-
-        # Build a map of medicine_id -> daily_routine record
         routine_map = {record["medicine_id"]: record for record in daily_records}
 
-        # Analyze adherence
         notifications: List[Dict[str, Any]] = []
+        
+        # Track names for better LLM personalization
+        pending_med_names = [] 
+        
         adherence_data = {
             "total_meds": len(medicines),
             "taken": 0,
@@ -79,21 +79,19 @@ async def check_medicine_status(user_id: int):
 
         for med in medicines:
             med_id = med.get("id")
-            name = med.get("name", "Unknown medicine")
+            name = med.get("name", "Medicine")
             dose = med.get("dose", "")
-            frequency = med.get("frequency", "")
             
             routine = routine_map.get(med_id)
 
             if not routine:
-                # No record for today → pending reminder
+                # No record -> Pending
                 adherence_data["pending"] += 1
+                pending_med_names.append(name)
                 notifications.append({
                     "type": "reminder",
                     "medicine_id": med_id,
                     "medicine_name": name,
-                    "dose": dose,
-                    "frequency": frequency,
                     "status": "pending"
                 })
             else:
@@ -102,43 +100,19 @@ async def check_medicine_status(user_id: int):
                 late_taken = routine.get("late_taken")
 
                 if taken and not late_taken:
-                    # Taken on time
                     adherence_data["taken"] += 1
-                    notifications.append({
-                        "type": "success",
-                        "medicine_id": med_id,
-                        "medicine_name": name,
-                        "status": "taken_on_time"
-                    })
+                    notifications.append({"type": "success", "medicine_id": med_id, "medicine_name": name, "status": "taken_on_time"})
                 elif taken and late_taken:
-                    # Taken late
                     adherence_data["late"] += 1
-                    notifications.append({
-                        "type": "late",
-                        "medicine_id": med_id,
-                        "medicine_name": name,
-                        "late_time": str(late_taken),
-                        "status": "taken_late"
-                    })
+                    notifications.append({"type": "late", "medicine_id": med_id, "medicine_name": name, "status": "taken_late"})
                 elif not_taken:
-                    # Explicitly missed
                     adherence_data["missed"] += 1
-                    notifications.append({
-                        "type": "missed",
-                        "medicine_id": med_id,
-                        "medicine_name": name,
-                        "status": "missed"
-                    })
+                    notifications.append({"type": "missed", "medicine_id": med_id, "medicine_name": name, "status": "missed"})
                 else:
-                    # Pending (record exists but no action)
+                    # Record exists but no status -> Pending
                     adherence_data["pending"] += 1
-                    notifications.append({
-                        "type": "reminder",
-                        "medicine_id": med_id,
-                        "medicine_name": name,
-                        "dose": dose,
-                        "status": "pending"
-                    })
+                    pending_med_names.append(name)
+                    notifications.append({"type": "reminder", "medicine_id": med_id, "medicine_name": name, "status": "pending"})
 
         # Calculate adherence score
         total = adherence_data["total_meds"]
@@ -147,31 +121,42 @@ async def check_medicine_status(user_id: int):
             1
         )
 
-        # Generate personalized summary using LLM
-        system_prompt = """You are a compassionate healthcare assistant helping patients with medication adherence.
-Generate a brief, encouraging summary (2-3 sentences) based on the patient's medication adherence data.
-Be supportive and motivating. If adherence is good, praise them. If there are issues, gently encourage improvement.
-Keep it warm, personal, and actionable."""
+        # --- UPDATED PROMPT LOGIC ---
+        
+        # Format pending names for the prompt
+        pending_list_str = ", ".join(pending_med_names) if pending_med_names else "None"
 
-        user_prompt = f"""Patient medication adherence today:
-- Total medications: {adherence_data['total_meds']}
-- Taken on time: {adherence_data['taken']}
-- Taken late: {adherence_data['late']}
-- Missed: {adherence_data['missed']}
-- Pending: {adherence_data['pending']}
-- Adherence score: {adherence_score}%
+        system_prompt = """You are a mobile health assistant.
+        Generate a **single, short, urgent but friendly push notification** (max 15-20 words).
+        
+        Rules:
+        1. If medicines are PENDING: Focus strictly on reminding the user to take them. Mention the medicine name if there is only 1 or 2.
+        2. If medicines are MISSED: Express gentle concern and ask if they want to reschedule.
+        3. If all TAKEN: A quick "Great job keeping up with your meds!" style message.
+        4. No "Hello", no "Subject", no markdown. Just the raw notification text.
+        """
 
-Generate a personalized, encouraging summary for the patient."""
+        user_prompt = f"""
+        Status:
+        - Pending: {adherence_data['pending']} (Names: {pending_list_str})
+        - Taken: {adherence_data['taken']}
+        - Missed: {adherence_data['missed']}
+        
+        Write the notification:
+        """
 
         try:
             llm_response = await llm.ainvoke([
-                ("system", system_prompt),
-                ("human", user_prompt)
+                SystemMessage(content=system_prompt),
+                HumanMessage(content=user_prompt)
             ])
-            summary = llm_response.content.strip()
-        except Exception as e:
-            # Fallback if LLM fails
-            summary = f"Your adherence score today is {adherence_score}%. Keep up the good work!"
+            notification_text = llm_response.content.strip()
+        except Exception:
+            # Fallback
+            if adherence_data['pending'] > 0:
+                notification_text = f"Reminder: You have {adherence_data['pending']} medicines left to take today."
+            else:
+                notification_text = "All caught up! Great job taking your medications today."
 
         return {
             "user_id": user_id,
@@ -179,7 +164,7 @@ Generate a personalized, encouraging summary for the patient."""
             "adherence_score": adherence_score,
             "adherence_data": adherence_data,
             "notifications": notifications,
-            "summary": summary
+            "notification_text": notification_text  # Renamed from 'summary' to be clear
         }
 
     except Exception as e:
