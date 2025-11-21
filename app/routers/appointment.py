@@ -1,0 +1,240 @@
+import os
+import json
+import redis.asyncio as redis
+import httpx
+from typing import List, Dict, Any, Optional
+from pydantic import BaseModel
+from fastapi import APIRouter, HTTPException, status
+from dotenv import load_dotenv
+
+from core.logging import get_logger
+
+load_dotenv()
+REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379")
+NODE_BACKEND_URL = os.getenv("NODE_BACKEND_URL", "http://13.232.77.201:3000")
+
+logger = get_logger("APPOINTMENT BOOKING ROUTER")
+
+router = APIRouter(prefix="/initiate-appointment", tags=["initiate-appointment"])
+
+class InitiateAppointmentRequest(BaseModel):
+    user_id: int
+
+class DoctorSelectionRequest(BaseModel):
+    doctor_id: str
+    doctor_name: str
+    patient_id: str
+    patient_name: str
+
+async def get_state_from_redis(user_id: int) -> Dict[str, Any]:
+    """
+    Get MedicalAgentState from Redis using Pattern Scanning & JSON.GET.
+    Refuses to fall back to DB.
+    """
+    async with redis.Redis.from_url(REDIS_URL, decode_responses=False) as redis_client:
+        pattern = f"*user_{user_id}*"
+        keys = []
+        async for key in redis_client.scan_iter(match=pattern):
+            keys.append(key)
+        
+        if not keys:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No active session found in Redis. Please start a chat session first."
+            )
+        
+        keys.sort(reverse=True)
+        
+        for key in keys:
+            key_str = key.decode() if isinstance(key, bytes) else key
+            
+            if "checkpoint_write" in key_str:
+                continue
+
+            try:
+                key_type = await redis_client.type(key)
+                
+                if key_type == b'ReJSON-RL':
+                    raw_data = await redis_client.execute_command("JSON.GET", key)
+                    
+                    if not raw_data: continue
+                    
+                    json_str = raw_data.decode('utf-8') if isinstance(raw_data, bytes) else raw_data
+                    payload = json.loads(json_str)
+                    
+                    if "checkpoint" in payload and "channel_values" in payload["checkpoint"]:
+                        return payload["checkpoint"]["channel_values"]
+                    
+                    if "channel_values" in payload:
+                        return payload["channel_values"]
+
+            except Exception as e:
+                print(f"Error parsing key {key_str}: {e}")
+                continue
+
+    raise HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND,
+        detail="Session keys found, but medical state could not be extracted."
+    )
+
+async def select_best_doctor(
+    doctors: List[Dict],
+    symptoms: List[Dict],
+    problem_type: str,
+    user_location: str
+) -> Dict:
+    """Select the best doctor using LLM logic."""
+    from langchain_google_genai import ChatGoogleGenerativeAI
+    from langchain_core.messages import HumanMessage, SystemMessage
+
+    llm = ChatGoogleGenerativeAI(
+        model="gemini-2.5-flash",
+        google_api_key=os.getenv("GEMINI_API_KEY"),
+        temperature=0.2,
+    )
+
+    doctor_summaries = [
+        {
+            "id": doc["id"],
+            "name": doc["name"],
+            "specialization": doc.get("specialization", "General"),
+            "experience_years": doc.get("experience_years", 0),
+            "city": doc.get("city", "Unknown"),
+            "affiliation_type": doc.get("affiliation_type", "")
+        }
+        for doc in doctors
+    ]
+
+    system_prompt = """You are a medical appointment coordinator. Select the BEST doctor based on:
+    1. Specialization match with the problem type (MOST IMPORTANT)
+    2. Location proximity to the patient
+    3. Experience level
+    4. Affiliation type
+    Return ONLY a JSON object: {"doctor_id": <id>}"""
+
+    user_prompt = f"""Patient:
+    - Location: {user_location}
+    - Problem Type: {problem_type}
+    - Symptoms: {json.dumps(symptoms, indent=2)}
+    Available Doctors: {json.dumps(doctor_summaries, indent=2)}"""
+
+    try:
+        response = llm.invoke([
+            SystemMessage(content=system_prompt),
+            HumanMessage(content=user_prompt)
+        ])
+
+        response_text = response.content.strip()
+        if "```json" in response_text:
+            response_text = response_text.split("```json")[1].split("```")[0].strip()
+        elif "```" in response_text:
+            response_text = response_text.split("```")[1].split("```")[0].strip()
+
+        result = json.loads(response_text)
+        selected_doctor_id = result.get("doctor_id")
+
+        selected_doctor = next(
+            (doc for doc in doctors if doc["id"] == selected_doctor_id),
+            None
+        )
+        if selected_doctor:
+            return selected_doctor
+
+        fallback_doctor = next(
+            (
+                doc for doc in doctors
+                if doc.get("specialization", "").lower() == problem_type.lower()
+            ),
+            doctors[0]
+        )
+        return fallback_doctor
+
+    except Exception:
+        return doctors[0]
+
+async def trigger_call_to_node_backend(
+    doctor_id: str,
+    doctor_name: str,
+    patient_id: str,
+    patient_name: str
+) -> Optional[Dict]:
+    """Trigger a call via the Node.js backend."""
+    endpoint = f"{NODE_BACKEND_URL}/api/initiate-call"
+    payload = {
+        "doctorId": doctor_id,
+        "doctorName": doctor_name,
+        "patientId": patient_id,
+        "patientName": patient_name
+    }
+
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        try:
+            response = await client.post(endpoint, json=payload)
+            response.raise_for_status()
+            return response.json()
+        except httpx.HTTPStatusError as e:
+            raise HTTPException(
+                status_code=e.response.status_code,
+                detail=f"Node.js backend error: {e.response.json().get('error')}"
+            )
+        except httpx.RequestError as e:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=f"Node.js backend connection error: {str(e)}"
+            )
+
+@router.post("/")
+async def initiate_appointment(request: InitiateAppointmentRequest):
+    """Initiate an appointment by selecting the best doctor and triggering a call."""
+    user_id = request.user_id
+
+    state = await get_state_from_redis(user_id)
+    
+    logger.info(f"✅ State found successfully {user_id}")
+
+    symptoms = state.get("symptoms_collected", [])
+    if not symptoms:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Symptoms not collected yet."
+        )
+    logger.info("❌ State does not have symptoms")
+
+    problem_type = state.get("detected_problem_type")
+    if not problem_type or problem_type == "None":
+        problem_type = "General"
+    logger.warning("No problem detected, fallback to general")
+    
+    from database import get_supabase
+    supabase = get_supabase()
+    doctors_response = supabase.table("doctors").select("*").execute()
+    if not doctors_response.data:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No doctors available")
+
+    # Select best doctor
+    selected_doctor = await select_best_doctor(
+        doctors=doctors_response.data,
+        symptoms=state["symptoms_collected"],
+        problem_type=state["detected_problem_type"],
+        user_location=state.get("user_location", "")
+    )
+
+    # Trigger call
+    call_response = await trigger_call_to_node_backend(
+        doctor_id=str(selected_doctor["id"]),
+        doctor_name=selected_doctor["name"],
+        patient_id=str(state["user_id"]),
+        patient_name=state.get("patient_name", f"Patient {state['user_id']}")
+    )
+
+    return {
+        "success": True,
+        "call_response": call_response,
+        "doctor": {
+            "id": selected_doctor["id"],
+            "name": selected_doctor["name"],
+            "specialization": selected_doctor.get("specialization"),
+            "city": selected_doctor.get("city")
+        },
+        "message": f"Call initiated with Dr. {selected_doctor['name']}"
+    }
