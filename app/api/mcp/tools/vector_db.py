@@ -125,7 +125,8 @@ class PineconeQuery:
                 await ctx.debug(f"Executing Query: {sub_query}")
             
             query_vector = self._embed_text(sub_query)
-            await ctx.info(f"VECTOR 1: {query_vector}")
+            # this nigga was making my terminal sick
+            # await ctx.info(f"VECTOR 1: {query_vector}")
             results = self._query_pinecone(query_vector, top_k_per_query, namespace)
             all_results[sub_query] = {
                 "purpose": purpose,
