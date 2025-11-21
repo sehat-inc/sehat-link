@@ -1,7 +1,7 @@
-from typing import Annotated, Any, Dict, Optional
-
-from fastapi import APIRouter, HTTPException, Depends
 import os
+import json
+from typing import Annotated, Any, Dict, Optional
+from fastapi import APIRouter, HTTPException, Depends
 import redis.asyncio as redis
 
 from auth_utils import get_current_user_id
@@ -16,16 +16,10 @@ logger = get_logger("PATIENT LOGOUT ROUTER")
 router = APIRouter(prefix="/user",tags=["user"])
 
 async def get_redis_state_for_user(user_id: int) -> Optional[Dict[str, Any]]:
-    """
-    Get the current MedicalAgentState from Redis for a user.
-    Returns None if no state exists.
-    """
     redis_client = await redis.from_url(REDIS_URL, decode_responses=False)
     
     try:
-        # LangGraph stores checkpoints with pattern: checkpoint:user_{id}:*
-        # We need to find the latest checkpoint
-        pattern = f"checkpoint:user_{user_id}:*"
+        pattern = f"*user_{user_id}*"
         keys = []
         
         async for key in redis_client.scan_iter(match=pattern):
@@ -35,39 +29,65 @@ async def get_redis_state_for_user(user_id: int) -> Optional[Dict[str, Any]]:
             logger.info(f"No Redis state found for user {user_id}")
             return None
         
-        logger.info(f"Found {len(keys)} checkpoint keys for user {user_id}")
+        keys.sort(reverse=True)
         
-        # Try to get a checkpoint key (not checkpoint_write)
+        logger.info(f"Found {len(keys)} keys for user {user_id}, scanning for JSON data")
+        
         for key in keys:
             key_str = key.decode() if isinstance(key, bytes) else key
-            if "__empty__" in key_str and "checkpoint_write" not in key_str:
-                data = await redis_client.get(key)
-                if data:
-                    try:
-                        import pickle
-                        state_data = pickle.loads(data)
-                        
-                        # LangGraph checkpoint structure
-                        if isinstance(state_data, dict):
-                            if 'values' in state_data:
-                                logger.info(f"✅ Successfully extracted state from {key_str}")
-                                return state_data['values']
-                            elif 'channel_values' in state_data:
-                                logger.info(f"✅ Successfully extracted state from {key_str}")
-                                return state_data['channel_values']
-                        elif hasattr(state_data, '__dict__'):
-                            if hasattr(state_data, 'values') and not callable(state_data.values):
-                                logger.info(f"✅ Successfully extracted state from {key_str}")
-                                return state_data.values
-                    except Exception as e:
-                        logger.warning(f"Failed to parse key {key_str}: {e}")
+            
+            if "checkpoint_write" in key_str:
+                continue
+
+            try:
+                key_type = await redis_client.type(key)
+                
+                if key_type == b'ReJSON-RL':
+                    raw_data = await redis_client.execute_command("JSON.GET", key)
+                    
+                    if not raw_data:
                         continue
+                        
+                    if isinstance(raw_data, bytes):
+                        json_str = raw_data.decode('utf-8')
+                    else:
+                        json_str = raw_data
+                    
+                    payload = json.loads(json_str)
+                    
+                    if "checkpoint" in payload and "channel_values" in payload["checkpoint"]:
+                        state_data = payload["checkpoint"]["channel_values"]
+                        logger.info(f"✅ Successfully extracted state from JSON key: {key_str}")
+                        return state_data
+                    
+                    if "channel_values" in payload:
+                        state_data = payload["channel_values"]
+                        logger.info(f"✅ Successfully extracted state from JSON key: {key_str}")
+                        return state_data
+
+                    def recursive_find(obj):
+                        if isinstance(obj, dict):
+                            if "chronic_conditions" in obj or "symptoms_collected" in obj or "user_id" in obj:
+                                return obj
+                            for v in obj.values():
+                                found = recursive_find(v)
+                                if found: return found
+                        return None
+                    
+                    fallback_state = recursive_find(payload)
+                    if fallback_state:
+                        logger.info(f"✅ Extracted state via recursive search from: {key_str}")
+                        return fallback_state
+
+            except Exception as e:
+                logger.error(f"Error parsing key {key_str}: {e}")
+                continue
         
-        logger.warning(f"Could not parse Redis state for user {user_id}")
+        logger.warning(f"Scanned {len(keys)} keys but found no valid medical state")
         return None
         
     except Exception as e:
-        logger.error(f"Error getting Redis state: {e}")
+        logger.error(f"Critical Redis error: {e}")
         return None
     finally:
         await redis_client.aclose()
@@ -106,7 +126,6 @@ async def save_state_to_longterm_session(user_id: int, state: Dict[str, Any]):
         
         # Research results
         "symptom_research_result": state.get("symptom_research_result", []),
-        "similar_cases": state.get("similar_cases", []),
         
         # Shared knowledge
         "shared_facts": state.get("shared_facts", []),
