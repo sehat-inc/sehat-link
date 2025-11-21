@@ -1,0 +1,612 @@
+{
+  "symptoms": [
+    {
+      "name": "Fever",
+      "keywords": ["bukhar", "tap", "high temperature", "shivering"],
+      "description": "Elevation of body temperature above 98.6°F (37°C).",
+      "severity": "moderate",
+      "advice": "Rest, stay hydrated, wear light clothes. Use cool water sponges if high.",
+      "red_flags": ["Stiff neck", "Difficulty breathing", "Rash", "Seizure"],
+      "when_to_seek_help": "If temperature exceeds 103°F or lasts more than 3 days."
+    },
+    {
+      "name": "Cough",
+      "keywords": ["khansi", "dry cough", "phlegm", "balgham"],
+      "description": "Reflex action to clear your airways of mucus and irritants.",
+      "severity": "mild",
+      "advice": "Stay hydrated, use honey/tea, steam inhalation.",
+      "red_flags": ["Coughing up blood", "Chest pain", "Shortness of breath"],
+      "when_to_seek_help": "If lasting more than 3 weeks or accompanied by high fever."
+    },
+    {
+      "name": "Headache",
+      "keywords": ["sar dard", "migraine", "tension"],
+      "description": "Pain or discomfort in the head or face region.",
+      "severity": "mild",
+      "advice": "Rest in a dark room, hydration, stress management.",
+      "red_flags": ["Sudden severe pain ('thunderclap')", "Slurred speech", "Visual loss"],
+      "when_to_seek_help": "If accompanied by vomiting, fever, or neck stiffness."
+    },
+    {
+      "name": "Stomach Pain",
+      "keywords": ["pait dard", "cramps", "abdominal pain"],
+      "description": "Pain from inside the abdomen or the outer muscle wall.",
+      "severity": "moderate",
+      "advice": "Avoid solid food for a few hours, sip water, use a heating pad.",
+      "red_flags": ["Bloody stool", "Rigid abdomen", "Vomiting blood"],
+      "when_to_seek_help": "If pain is sharp, located in lower right side, or persists over 24 hours."
+    },
+    {
+      "name": "Diarrhea",
+      "keywords": ["pait kharab", "loose motion", "dast"],
+      "description": "Loose, watery stools occurring more than three times a day.",
+      "severity": "moderate",
+      "advice": "Drink ORS (Nimkol) to prevent dehydration. Eat bananas, rice, toast.",
+      "red_flags": ["Blood/pus in stool", "Severe dehydration", "High fever"],
+      "when_to_seek_help": "If signs of dehydration appear or lasts >2 days (adults) or >24hrs (kids)."
+    },
+    {
+      "name": "Vomiting",
+      "keywords": ["ulti", "qai", "nausea"],
+      "description": "Forceful expulsion of stomach contents through the mouth.",
+      "severity": "moderate",
+      "advice": "Stop eating. Sip small amounts of ORS or water/ginger tea.",
+      "red_flags": ["Blood in vomit", "Severe headache", "Confusion"],
+      "when_to_seek_help": "If vomiting lasts more than 1 day or signs of dehydration occur."
+    },
+    {
+      "name": "Chest Pain",
+      "keywords": ["seenay main dard", "angina", "heart"],
+      "description": "Discomfort or pain anywhere in the front of the body between neck and upper abdomen.",
+      "severity": "severe",
+      "advice": "Sit down and rest immediately. Loosen tight clothing.",
+      "red_flags": ["Crushing pressure", "Pain radiating to left arm/jaw", "Sweating"],
+      "when_to_seek_help": "IMMEDIATELY call 1122 or go to ER if heart attack is suspected."
+    },
+    {
+      "name": "Shortness of Breath",
+      "keywords": ["saans phoolna", "dyspnea", "suffocation"],
+      "description": "Feeling that you cannot get enough air into your lungs.",
+      "severity": "severe",
+      "advice": "Sit upright, try to relax. Use inhaler if prescribed.",
+      "red_flags": ["Blue lips/fingers", "Unable to speak sentences", "Wheezing"],
+      "when_to_seek_help": "Immediately if sudden or severe."
+    },
+    {
+      "name": "Sore Throat",
+      "keywords": ["gala kharab", "throat pain", "tonsils"],
+      "description": "Pain, scratchiness or irritation of the throat that often worsens when you swallow.",
+      "severity": "mild",
+      "advice": "Salt water gargles, warm fluids, lozenges.",
+      "red_flags": ["Difficulty breathing", "Difficulty swallowing saliva", "Drooling"],
+      "when_to_seek_help": "If accompanied by rash or fever >101°F."
+    },
+    {
+      "name": "Skin Rash",
+      "keywords": ["khariish", "laal dhabay", "allergy"],
+      "description": "Change in the texture or color of your skin.",
+      "severity": "mild",
+      "advice": "Keep area clean/dry. Avoid scratching. Apply calamine lotion.",
+      "red_flags": ["Rapidly spreading", "Purple spots", "Swelling of face/lips"],
+      "when_to_seek_help": "If rash is infected, painful, or allergic reaction is suspected."
+    },
+    {
+      "name": "Fatigue",
+      "keywords": ["thakawat", "kamzori", "weakness"],
+      "description": "Feeling of constant tiredness or weakness.",
+      "severity": "mild",
+      "advice": "Sleep hygiene, proper nutrition, hydration.",
+      "red_flags": ["Unexplained weight loss", "Night sweats", "Lumps in body"],
+      "when_to_seek_help": "If it persists for weeks despite rest."
+    },
+    {
+      "name": "Dizziness",
+      "keywords": ["chakkar", "ghash", "lightheadedness"],
+      "description": "A sensation of spinning around and losing one's balance.",
+      "severity": "moderate",
+      "advice": "Sit or lie down immediately. Drink water.",
+      "red_flags": ["Fainting", "Chest pain", "Head injury"],
+      "when_to_seek_help": "If recurrent or accompanied by hearing loss/ringing."
+    },
+    {
+      "name": "Back Pain",
+      "keywords": ["kamar dard", "sciatica"],
+      "description": "Physical discomfort occurring anywhere on the spine or back.",
+      "severity": "moderate",
+      "advice": "Maintain posture, light stretching, hot/cold packs.",
+      "red_flags": ["Loss of bladder control", "Numbness in legs", "Fever"],
+      "when_to_seek_help": "If pain follows a fall or causes leg weakness."
+    },
+    {
+      "name": "Joint Pain",
+      "keywords": ["joron ka dard", "arthritis"],
+      "description": "Discomfort, aches, and soreness in any of the body’s joints.",
+      "severity": "moderate",
+      "advice": "Rest, ice packs (acute) or heat (chronic), gentle movement.",
+      "red_flags": ["Red, hot, swollen joint", "Fever", "Deformity"],
+      "when_to_seek_help": "If joint is immobile or pain is severe."
+    },
+    {
+      "name": "Toothache",
+      "keywords": ["daant dard", "dental pain"],
+      "description": "Pain in or around a tooth.",
+      "severity": "moderate",
+      "advice": "Clove oil, warm salt water rinse, avoid cold/hot foods.",
+      "red_flags": ["Swelling of face", "Fever", "Discharge/pus"],
+      "when_to_seek_help": "See a dentist as soon as possible."
+    },
+    {
+      "name": "Earache",
+      "keywords": ["kaan dard", "ear infection"],
+      "description": "Pain in the inner or outer ear.",
+      "severity": "moderate",
+      "advice": "Warm compress, keep ear dry. Do not insert objects.",
+      "red_flags": ["Discharge from ear", "Hearing loss", "High fever"],
+      "when_to_seek_help": "If pain is severe or lasts >2 days."
+    },
+    {
+      "name": "Dehydration",
+      "keywords": ["pani ki kami", "thirst", "dry mouth"],
+      "description": "Condition caused by the loss of too much fluid from the body.",
+      "severity": "severe",
+      "advice": "Drink ORS (Nimkol) frequently, sip plain water.",
+      "red_flags": ["No urine for 8+ hours", "Sunken eyes", "Confusion"],
+      "when_to_seek_help": "Immediately for children or elderly."
+    },
+    {
+      "name": "Palpitations",
+      "keywords": ["dil ki dharkan", "heart racing"],
+      "description": "Feelings of having a fast-beating, fluttering or pounding heart.",
+      "severity": "moderate",
+      "advice": "Sit down, practice deep breathing, avoid caffeine.",
+      "red_flags": ["Fainting", "Chest pain", "Shortness of breath"],
+      "when_to_seek_help": "If history of heart disease or frequent episodes."
+    },
+    {
+      "name": "Anxiety",
+      "keywords": ["ghabrahat", "bechaini", "panic"],
+      "description": "Intense, excessive and persistent worry and fear.",
+      "severity": "mild",
+      "advice": "Deep breathing (4-7-8 technique), grounding exercises.",
+      "red_flags": ["Thoughts of self-harm", "Unable to function"],
+      "when_to_seek_help": "If affecting daily life or sleep."
+    },
+    {
+      "name": "Eye Redness/Pain",
+      "keywords": ["aankh dukhna", "conjunctivitis", "pink eye"],
+      "description": "Redness, itching, or pain in the eyes.",
+      "severity": "mild",
+      "advice": "Wash with clean water, use cold compress, avoid touching.",
+      "red_flags": ["Visual changes", "Severe pain", "Sensitivity to light"],
+      "when_to_seek_help": "If caused by chemical splash or foreign object."
+    }
+  ],
+  "conditions": [
+    {
+      "name": "Dengue Fever",
+      "keywords": ["dengue", "breakbone fever", "mosquito"],
+      "description": "Viral infection spread by mosquitoes common in Pakistan.",
+      "symptoms": ["High fever", "Severe headache", "Pain behind eyes", "Joint pain", "Rash"],
+      "causes": ["Aedes mosquito bite"],
+      "treatment": "Supportive care, hydration (ORS/juices), Paracetamol. AVOID Aspirin/Brufen.",
+      "prevention": "Remove standing water, use mosquito repellent."
+    },
+    {
+      "name": "Malaria",
+      "keywords": ["malaria", "chills", " मच्छर"],
+      "description": "Life-threatening disease caused by parasites transmitted by mosquitoes.",
+      "symptoms": ["Fever with chills", "Sweating", "Headache", "Vomiting"],
+      "causes": ["Anopheles mosquito bite"],
+      "treatment": "Antimalarial medication (requires prescription after blood test).",
+      "prevention": "Mosquito nets, prophylactic medicine."
+    },
+    {
+      "name": "Diabetes Type 2",
+      "keywords": ["sugar", "ziyabetus"],
+      "description": "Chronic condition affecting how the body processes blood sugar.",
+      "symptoms": ["Increased thirst", "Frequent urination", "Hunger", "Fatigue", "Blurred vision"],
+      "causes": ["Insulin resistance", "Genetics", "Obesity"],
+      "treatment": "Diet control, exercise, Metformin/Insulin (as prescribed).",
+      "prevention": "Healthy diet, weight maintenance, regular exercise."
+    },
+    {
+      "name": "Hypertension",
+      "keywords": ["high blood pressure", "BP"],
+      "description": "Long-term force of blood against artery walls is high.",
+      "symptoms": ["Often asymptomatic", "Headache", "Nosebleeds"],
+      "causes": ["Salt intake", "Obesity", "Genetics", "Stress"],
+      "treatment": "Lifestyle changes, antihypertensives.",
+      "prevention": "Low salt diet, exercise, stress reduction."
+    },
+    {
+      "name": "Typhoid Fever",
+      "keywords": ["typhoid", "contaminated water"],
+      "description": "Bacterial infection caused by Salmonella typhi.",
+      "symptoms": ["Prolonged high fever", "Weakness", "Stomach pain", "Rash"],
+      "causes": ["Contaminated food or water"],
+      "treatment": "Antibiotics.",
+      "prevention": "Vaccination, drinking boiled/filtered water."
+    },
+    {
+      "name": "Gastroenteritis",
+      "keywords": ["food poisoning", "stomach flu"],
+      "description": "Inflammation of the lining of the intestines.",
+      "symptoms": ["Watery diarrhea", "Vomiting", "Stomach cramps"],
+      "causes": ["Viruses", "Bacteria", "Parasites"],
+      "treatment": "Hydration (ORS), Zinc supplements, Bland diet.",
+      "prevention": "Hand washing, food hygiene."
+    },
+    {
+      "name": "Asthma",
+      "keywords": ["dama", "breathing trouble"],
+      "description": "Airways narrow and swell and may produce extra mucus.",
+      "symptoms": ["Shortness of breath", "Chest tightness", "Wheezing", "Coughing"],
+      "causes": ["Allergens", "Pollution", "Cold air"],
+      "treatment": "Inhalers (Ventolin), Steroids.",
+      "prevention": "Avoid triggers (dust, smoke, pollen)."
+    },
+    {
+      "name": "Hepatitis A/E",
+      "keywords": ["yarqan", "jaundice", "liver infection"],
+      "description": "Viral liver infection usually spread through ingestion.",
+      "symptoms": ["Yellow eyes/skin", "Dark urine", "Fatigue", "Nausea"],
+      "causes": ["Contaminated food/water"],
+      "treatment": "Rest, hydration, low-fat diet. Usually self-limiting.",
+      "prevention": "Vaccination (Hep A), Hygiene, Boiled water."
+    },
+    {
+      "name": "Hepatitis B/C",
+      "keywords": ["kala yarqan", "blood borne"],
+      "description": "Viral infection attacking the liver, spread via blood/fluids.",
+      "symptoms": ["Often asymptomatic initially", "Fatigue", "Jaundice"],
+      "causes": ["Used syringes", "Unscreened blood transfusion", "Sexual contact"],
+      "treatment": "Antivirals.",
+      "prevention": "Vaccination (Hep B), Avoid sharing razors/needles."
+    },
+    {
+      "name": "Tuberculosis (TB)",
+      "keywords": ["TB", "tap-e-diq"],
+      "description": "Bacterial infection mostly affecting lungs.",
+      "symptoms": ["Cough >3 weeks", "Weight loss", "Night sweats", "Coughing blood"],
+      "causes": ["Airborne bacteria from infected person"],
+      "treatment": "6-month course of antibiotics (DOTS program).",
+      "prevention": "BCG Vaccine, ventilation, masks."
+    },
+    {
+      "name": "Pneumonia",
+      "keywords": ["namonia", "chest infection"],
+      "description": "Infection that inflames air sacs in one or both lungs.",
+      "symptoms": ["Cough with phlegm", "Fever", "Chills", "Difficulty breathing"],
+      "causes": ["Bacteria", "Viruses", "Fungi"],
+      "treatment": "Antibiotics (bacterial), rest, fluids.",
+      "prevention": "Vaccines (Pneumococcal, Flu), Hygiene."
+    },
+    {
+      "name": "Scabies",
+      "keywords": ["khujli", "mites"],
+      "description": "Itchy skin condition caused by a burrowing mite.",
+      "symptoms": ["Intense itching (worse at night)", "Pimple-like rash"],
+      "causes": ["Skin-to-skin contact"],
+      "treatment": "Permethrin cream, washing clothes in hot water.",
+      "prevention": "Avoid direct contact with infected persons."
+    },
+    {
+      "name": "Urinary Tract Infection (UTI)",
+      "keywords": ["peshab ki jalan", "bladder infection"],
+      "description": "Infection in any part of the urinary system.",
+      "symptoms": ["Burning sensation when urinating", "Cloudy urine", "Pelvic pain"],
+      "causes": ["Bacteria (E. coli)"],
+      "treatment": "Antibiotics, increased water intake.",
+      "prevention": "Hydration, hygiene."
+    },
+    {
+      "name": "Heatstroke",
+      "keywords": ["loo lagna", "sunstroke"],
+      "description": "Condition caused by your body overheating.",
+      "symptoms": ["High body temp", "Altered mental state", "Hot dry skin"],
+      "causes": ["Prolonged exposure to high temperatures"],
+      "treatment": "Emergency cooling, move to shade, remove excess clothes.",
+      "prevention": "Hydration, avoid midday sun."
+    },
+    {
+      "name": "Anemia",
+      "keywords": ["khoon ki kami", "iron deficiency"],
+      "description": "Lack of enough healthy red blood cells.",
+      "symptoms": ["Fatigue", "Pale skin", "Shortness of breath", "Dizziness"],
+      "causes": ["Iron deficiency", "Vitamin deficiency", "Blood loss"],
+      "treatment": "Iron supplements, Iron-rich diet (meat, spinach).",
+      "prevention": "Balanced diet."
+    }
+  ],
+  "first_aid": [
+    {
+      "name": "Burns",
+      "keywords": ["jalna", "fire", "scald"],
+      "description": "Tissue damage from heat, chemicals, or electricity.",
+      "steps": ["Run cool (not cold) tap water for 10-20 mins", "Remove constricting items", "Cover with clean cloth/cling film"],
+      "warnings": ["Do NOT use ice", "Do NOT apply toothpaste or butter", "Do NOT pop blisters"],
+      "when_to_call_emergency": "If burn is large, on face/hands/genitals, or electrical."
+    },
+    {
+      "name": "Cuts and Bleeding",
+      "keywords": ["zakham", "khoon", "cut"],
+      "description": "Injury breaking the skin.",
+      "steps": ["Apply direct pressure with clean cloth", "Elevate the injury", "Clean with water once bleeding stops"],
+      "warnings": ["Do not remove embedded objects"],
+      "when_to_call_emergency": "If bleeding doesn't stop after 10 mins pressure or spurts blood."
+    },
+    {
+      "name": "Choking",
+      "keywords": ["gala band hona", "stuck food"],
+      "description": "Blockage of the upper airway.",
+      "steps": ["Encourage coughing", "Perform Heimlich maneuver (abdominal thrusts)", "Back blows for infants"],
+      "warnings": ["Do not offer water while choking"],
+      "when_to_call_emergency": "If person becomes unconscious or cannot breathe."
+    },
+    {
+      "name": "Snake Bite",
+      "keywords": ["saanp ka katna", "venom"],
+      "description": "Bite from a venomous snake.",
+      "steps": ["Keep patient calm and still", "Immobilize the bitten limb", "Mark the edge of swelling"],
+      "warnings": ["Do NOT suck out poison", "Do NOT apply tight tourniquet", "Do NOT cut the wound"],
+      "when_to_call_emergency": "IMMEDIATELY. Transport to hospital with anti-venom."
+    },
+    {
+      "name": "Heart Attack",
+      "keywords": ["dil ka dora", "cardiac arrest"],
+      "description": "Blockage of blood flow to the heart.",
+      "steps": ["Call 1122", "Have patient chew 300mg Aspirin (Disprin)", "Keep patient seated"],
+      "warnings": ["Do not drive yourself to hospital"],
+      "when_to_call_emergency": "IMMEDIATELY."
+    },
+    {
+      "name": "Heat Stroke",
+      "keywords": ["loo", "hyperthermia"],
+      "description": "Body overheating dangerously.",
+      "steps": ["Move to cool place", "Remove heavy clothes", "Apply cool water to skin", "Fan the patient"],
+      "warnings": ["Do not give fluids if unconscious"],
+      "when_to_call_emergency": "If patient is confused, unconscious, or hot/dry skin."
+    },
+    {
+      "name": "Fracture",
+      "keywords": ["haddi tootna", "broken bone"],
+      "description": "Break in bone continuity.",
+      "steps": ["Immobilize the area (splint)", "Apply ice pack for swelling", "Stop any bleeding"],
+      "warnings": ["Do not try to realign the bone"],
+      "when_to_call_emergency": "If bone is protruding (open fracture) or limb is pale/cold."
+    },
+    {
+      "name": "Electric Shock",
+      "keywords": ["bijli ka shock", "current"],
+      "description": "Injury from electrical current.",
+      "steps": ["Turn off power source first", "Separate person from source using non-conductive object (wood)", "Check breathing"],
+      "warnings": ["Do not touch person until power is off"],
+      "when_to_call_emergency": "Always, to check for internal damage."
+    },
+    {
+      "name": "Dog Bite",
+      "keywords": ["kuttay ka katna", "rabies"],
+      "description": "Bite from a dog, potential rabies risk.",
+      "steps": ["Wash wound with soap and running water for 15 minutes", "Apply antiseptic"],
+      "warnings": ["Do not suture/stitch immediately"],
+      "when_to_call_emergency": "Go to hospital for Rabies Vaccine (IG/Vaccine) immediately."
+    },
+    {
+      "name": "Seizure",
+      "keywords": ["jhatka", "fit", "epilepsy"],
+      "description": "Uncontrolled electrical disturbance in the brain.",
+      "steps": ["Clear area of hard objects", "Place something soft under head", "Turn to side after jerking stops"],
+      "warnings": ["Do NOT put anything in mouth", "Do NOT restrain them"],
+      "when_to_call_emergency": "If seizure lasts >5 mins or person is pregnant/injured."
+    }
+  ],
+  "medications": [
+    {
+      "name": "Paracetamol (Panadol/Calpol)",
+      "keywords": ["painkiller", "fever reducer"],
+      "type": "Analgesic/Antipyretic",
+      "uses": "Fever, mild pain, headache.",
+      "dosage_info": "Adults: 500mg-1g every 4-6 hours. Max 4g/day.",
+      "side_effects": ["Nausea", "Liver damage (overdose)"],
+      "warnings": ["Be careful with other cold meds containing paracetamol."]
+    },
+    {
+      "name": "Ibuprofen (Brufen)",
+      "keywords": ["painkiller", "inflammation"],
+      "type": "NSAID",
+      "uses": "Pain, inflammation, fever, toothache.",
+      "dosage_info": "Adults: 200-400mg every 6-8 hours with food.",
+      "side_effects": ["Stomach upset", "Ulcers"],
+      "warnings": ["Avoid if you have Dengue suspicion or stomach ulcers."]
+    },
+    {
+      "name": "Aspirin (Disprin/Loprin)",
+      "keywords": ["blood thinner", "heart attack"],
+      "type": "NSAID/Antiplatelet",
+      "uses": "Heart attack first aid, pain.",
+      "dosage_info": "300mg chewed for heart attack.",
+      "side_effects": ["Bleeding", "Stomach irritation"],
+      "warnings": ["Do NOT give to children under 16 (Reye's Syndrome risk)."]
+    },
+    {
+      "name": "ORS (Nimkol/Pedialyte)",
+      "keywords": ["hydration", "salts"],
+      "type": "Electrolyte solution",
+      "uses": "Dehydration from diarrhea/vomiting.",
+      "dosage_info": "Dissolve 1 sachet in 1 liter boiled water. Drink freely.",
+      "side_effects": ["None if mixed correctly"],
+      "warnings": ["Use within 24 hours of mixing."]
+    },
+    {
+      "name": "Metronidazole (Flagyl)",
+      "keywords": ["antibiotic", "stomach bug"],
+      "type": "Antibiotic",
+      "uses": "Amoebic dysentery, dental infections.",
+      "dosage_info": "400mg every 8 hours (Consult doctor).",
+      "side_effects": ["Metallic taste", "Nausea"],
+      "warnings": ["Avoid alcohol completely."]
+    },
+    {
+      "name": "Cetirizine (Rigix/Zyrtec)",
+      "keywords": ["allergy", "flu"],
+      "type": "Antihistamine",
+      "uses": "Hay fever, runny nose, hives.",
+      "dosage_info": "10mg once daily.",
+      "side_effects": ["Drowsiness", "Dry mouth"],
+      "warnings": ["Caution when driving."]
+    },
+    {
+      "name": "Omeprazole (Risek/Omega)",
+      "keywords": ["acidity", "gas"],
+      "type": "Proton Pump Inhibitor",
+      "uses": "Acid reflux, heartburn, gastritis.",
+      "dosage_info": "20-40mg once daily before breakfast.",
+      "side_effects": ["Headache", "Stomach pain"],
+      "warnings": ["Take on empty stomach."]
+    },
+    {
+      "name": "Dimenhydrinate (Gravinate)",
+      "keywords": ["vomiting", "motion sickness"],
+      "type": "Antiemetic",
+      "uses": "Nausea, vomiting, dizziness.",
+      "dosage_info": "50mg every 4-6 hours.",
+      "side_effects": ["Drowsiness"],
+      "warnings": ["May cause sedation."]
+    },
+    {
+      "name": "Ciprofloxacin (Novidat)",
+      "keywords": ["antibiotic", "typhoid"],
+      "type": "Antibiotic",
+      "uses": "UTI, Typhoid, Bacterial diarrhea.",
+      "dosage_info": "500mg every 12 hours (Consult doctor).",
+      "side_effects": ["Nausea", "Tendon pain"],
+      "warnings": ["Complete the full course."]
+    },
+    {
+      "name": "Diclofenac (Voltral/Dicloran)",
+      "keywords": ["strong painkiller"],
+      "type": "NSAID",
+      "uses": "Severe joint pain, kidney stones, muscle pain.",
+      "dosage_info": "50mg every 8 hours with food.",
+      "side_effects": ["Stomach pain", "Kidney strain"],
+      "warnings": ["Avoid long term use."]
+    },
+    {
+      "name": "Amoxicillin (Amoxil/Augmentin)",
+      "keywords": ["antibiotic", "chest infection"],
+      "type": "Antibiotic (Penicillin)",
+      "uses": "Throat, ear, and chest infections.",
+      "dosage_info": "Consult doctor for dosage.",
+      "side_effects": ["Diarrhea", "Rash"],
+      "warnings": ["Do not use if allergic to Penicillin."]
+    },
+    {
+      "name": "Salbutamol (Ventolin)",
+      "keywords": ["inhaler", "asthma"],
+      "type": "Bronchodilator",
+      "uses": "Asthma attacks, shortness of breath.",
+      "dosage_info": "2 puffs when needed.",
+      "side_effects": ["Shaking hands", "Fast heartbeat"],
+      "warnings": ["Keep rescue inhaler accessible."]
+    },
+    {
+      "name": "Oral Rehydration Salts (ORS)",
+      "keywords": ["nimkol"],
+      "type": "Electrolytes",
+      "uses": "Dehydration",
+      "dosage_info": "As needed.",
+      "side_effects": ["None"],
+      "warnings": ["Mix with correct amount of water."]
+    },
+    {
+      "name": "Mebendazole (Vermox)",
+      "keywords": ["worms", "keeray"],
+      "type": "Anti-parasitic",
+      "uses": "Threadworms, roundworms.",
+      "dosage_info": "Usually single dose (Consult doctor).",
+      "side_effects": ["Stomach pain"],
+      "warnings": ["Treat whole family if threadworms found."]
+    },
+    {
+      "name": "Silver Sulfadiazine (Quench)",
+      "keywords": ["burn cream"],
+      "type": "Antibiotic cream",
+      "uses": "Prevention of infection in burns.",
+      "dosage_info": "Apply thin layer to burn.",
+      "side_effects": ["Skin irritation"],
+      "warnings": ["Keep burn clean."]
+    }
+  ],
+  "preventive_care": [
+    {
+      "name": "Hand Hygiene",
+      "keywords": ["haath dhona", "cleanliness"],
+      "description": "Washing hands with soap to prevent disease spread.",
+      "recommendations": ["Wash for 20 seconds", "Wash before eating/cooking", "Wash after toilet"],
+      "frequency": "Multiple times daily"
+    },
+    {
+      "name": "Water Safety",
+      "keywords": ["ubla pani", "boiled water"],
+      "description": "Ensuring drinking water is free of pathogens.",
+      "recommendations": ["Boil water for 1 min rolling boil", "Use chlorination tablets", "Use reliable filters"],
+      "frequency": "Always for drinking water"
+    },
+    {
+      "name": "Dengue Prevention",
+      "keywords": ["machar", "spray"],
+      "description": "Stopping mosquito breeding.",
+      "recommendations": ["Remove standing water from pots/tyres", "Use repellent", "Wear long sleeves"],
+      "frequency": "Daily check, especially post-rain"
+    },
+    {
+      "name": "Vaccination (EPI)",
+      "keywords": ["teekay", "immunization"],
+      "description": "Government immunization program for children.",
+      "recommendations": ["Follow EPI schedule card", "Polio drops every campaign", "BCG/Pentavalent/Measles"],
+      "frequency": "As per EPI schedule (Birth to 15 months)"
+    },
+    {
+      "name": "Oral Hygiene",
+      "keywords": ["dant safai", "brushing"],
+      "description": "Care of teeth and gums.",
+      "recommendations": ["Brush twice daily", "Floss once daily", "Limit sugary snacks"],
+      "frequency": "Daily"
+    },
+    {
+      "name": "Healthy Diet",
+      "keywords": ["ghiza", "nutrition"],
+      "description": "Balanced intake of nutrients.",
+      "recommendations": ["Eat fruits/vegetables", "Limit oil/ghee", "Reduce sugar/salt"],
+      "frequency": "Daily"
+    },
+    {
+      "name": "Sun Protection",
+      "keywords": ["dhoop", "sunscreen"],
+      "description": "Protecting skin from UV rays.",
+      "recommendations": ["Avoid sun 11am-3pm", "Wear hats", "Hydrate in summer"],
+      "frequency": "Daily in summer"
+    },
+    {
+      "name": "Smoking Cessation",
+      "keywords": ["tark-e-tambaku", "no smoking"],
+      "description": "Quitting tobacco products.",
+      "recommendations": ["Seek support", "Avoid triggers", "Consider nicotine replacement"],
+      "frequency": "Permanent"
+    },
+    {
+      "name": "Maternal Health",
+      "keywords": ["hamal", "pregnancy care"],
+      "description": "Care during pregnancy.",
+      "recommendations": ["Antenatal visits", "Folic acid/Iron supplements", "Tetanus shot"],
+      "frequency": "Regularly during pregnancy"
+    },
+    {
+      "name": "Physical Activity",
+      "keywords": ["warjish", "exercise"],
+      "description": "Regular bodily movement.",
+      "recommendations": ["30 mins brisk walk", "Active lifestyle"],
+      "frequency": "5 days a week"
+    }
+  ]
+}

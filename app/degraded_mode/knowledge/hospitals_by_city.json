@@ -1,0 +1,593 @@
+{
+  "cities": {
+    "karachi": [
+      {
+        "name": "Aga Khan University Hospital (AKUH)",
+        "type": "Private/Teaching",
+        "address": "Stadium Road, Karachi",
+        "contact": "021-111-911-911",
+        "emergency": "021-34861090",
+        "specialties": ["Cardiology", "Oncology", "Neurology", "Trauma"],
+        "facilities": ["24/7 ER", "Lab", "Pharmacy", "Private Rooms"]
+      },
+      {
+        "name": "Jinnah Postgraduate Medical Centre (JPMC)",
+        "type": "Public/Teaching",
+        "address": "Rafiqui Shaheed Road, Cantonment, Karachi",
+        "contact": "021-99201300",
+        "emergency": "021-99201300",
+        "specialties": ["Trauma", "Poison Control", "Chest Diseases", "Neurology"],
+        "facilities": ["Free Emergency", "Cyberknife (Cancer)", "Radiology"]
+      },
+      {
+        "name": "Civil Hospital Karachi (Dr. Ruth Pfau)",
+        "type": "Public/Teaching",
+        "address": "Mission Road, Near Dow Medical College",
+        "contact": "021-99215740",
+        "emergency": "021-99215749",
+        "specialties": ["General Surgery", "Internal Medicine", "Burns Center"],
+        "facilities": ["Trauma Center", "Free OPD"]
+      },
+      {
+        "name": "The Indus Hospital",
+        "type": "Private (Charitable)",
+        "address": "Korangi Crossing, Karachi",
+        "contact": "021-35112709",
+        "emergency": "021-35112709",
+        "specialties": ["Pediatrics", "Infectious Diseases", "Cardiology"],
+        "facilities": ["Free of Cost Treatment", "Blood Center"]
+      },
+      {
+        "name": "Liaquat National Hospital",
+        "type": "Private/Teaching",
+        "address": "Stadium Road, Karachi",
+        "contact": "021-111-456-456",
+        "emergency": "021-34412563",
+        "specialties": ["Orthopedics", "Neurosurgery", "Rehabilitation"],
+        "facilities": ["MRI", "CT Scan", "24/7 Pharmacy"]
+      },
+      {
+        "name": "NICVD (National Institute of Cardiovascular Diseases)",
+        "type": "Public/Specialized",
+        "address": "Rafiqui Shaheed Road, Karachi",
+        "contact": "021-99201271",
+        "emergency": "021-99201271",
+        "specialties": ["Cardiology", "Cardiac Surgery"],
+        "facilities": ["Chest Pain Unit", "Angioplasty", "Free Treatment"]
+      },
+      {
+        "name": "SIUT (Sindh Institute of Urology and Transplantation)",
+        "type": "Public/Charitable",
+        "address": "Civil Hospital Compound, Karachi",
+        "contact": "021-99215752",
+        "emergency": "021-99215752",
+        "specialties": ["Urology", "Nephrology", "Transplant", "Dialysis"],
+        "facilities": ["Free Dialysis", "Kidney Transplant"]
+      },
+      {
+        "name": "Dow University Hospital (Ojha Campus)",
+        "type": "Public/Teaching",
+        "address": "Suparco Road, Gulzar-e-Hijri",
+        "contact": "021-38771000",
+        "emergency": "021-38771000",
+        "specialties": ["General Medicine", "Tuberculosis", "Dental"],
+        "facilities": ["Diagnostic Lab", "OT Complex"]
+      },
+      {
+        "name": "Patel Hospital",
+        "type": "Private/Charitable",
+        "address": "Gulshan-e-Iqbal Block 4",
+        "contact": "021-111-174-174",
+        "emergency": "021-34968668",
+        "specialties": ["Oncology", "Gynecology", "Paeds"],
+        "facilities": ["ICU", "NICU"]
+      },
+      {
+        "name": "Abbasi Shaheed Hospital",
+        "type": "Public (KMC)",
+        "address": "Nazimabad No 3",
+        "contact": "021-99260400",
+        "emergency": "021-99260400",
+        "specialties": ["Trauma", "Medicine", "Surgery"],
+        "facilities": ["General Ward", "X-Ray"]
+      }
+    ],
+    "lahore": [
+      {
+        "name": "Mayo Hospital",
+        "type": "Public/Teaching",
+        "address": "Hospital Road, Gawalmandi",
+        "contact": "042-99211100",
+        "emergency": "042-99211129",
+        "specialties": ["Trauma", "Burn Unit", "Eye", "Psychiatry"],
+        "facilities": ["Oldest Hospital", "Free OPD", "Surgical Tower"]
+      },
+      {
+        "name": "Shaukat Khanum Memorial Cancer Hospital",
+        "type": "Private (Charitable)",
+        "address": "7A Block R-3, Johar Town",
+        "contact": "042-35905000",
+        "emergency": "042-35905000",
+        "specialties": ["Oncology", "Radiology", "Nuclear Medicine"],
+        "facilities": ["Cancer Care", "Pathology Lab"]
+      },
+      {
+        "name": "Jinnah Hospital Lahore",
+        "type": "Public/Teaching",
+        "address": "Usmani Road, Faisal Town",
+        "contact": "042-99231400",
+        "emergency": "042-99231400",
+        "specialties": ["Medicine", "Surgery", "Cardiology"],
+        "facilities": ["Burn Center", "Dialysis"]
+      },
+      {
+        "name": "Services Hospital",
+        "type": "Public/Teaching",
+        "address": "Jail Road, Shadman",
+        "contact": "042-99203402",
+        "emergency": "042-99203424",
+        "specialties": ["Endocrinology", "Dermatology", "ENT"],
+        "facilities": ["ICU", "CCU"]
+      },
+      {
+        "name": "Doctors Hospital",
+        "type": "Private",
+        "address": "152-G/1, Canal Bank Road, Johar Town",
+        "contact": "042-111-234-345",
+        "emergency": "042-35302701",
+        "specialties": ["Cardiac Surgery", "Orthopedics", "Liver Transplant"],
+        "facilities": ["Advanced Diagnostics", "Private Suites"]
+      },
+      {
+        "name": "Shaikh Zayed Hospital",
+        "type": "Public (Federal)",
+        "address": "University Avenue, New Muslim Town",
+        "contact": "042-35865731",
+        "emergency": "042-35865731",
+        "specialties": ["Gastroenterology", "Nephrology", "Liver Transplant"],
+        "facilities": ["Federal Govt Facility", "Kidney Center"]
+      },
+      {
+        "name": "Sir Ganga Ram Hospital",
+        "type": "Public/Teaching",
+        "address": "Queens Road",
+        "contact": "042-99200572",
+        "emergency": "042-99200572",
+        "specialties": ["Gynecology", "Obstetrics", "Surgery"],
+        "facilities": ["Maternal Care", "Thalassemia Center"]
+      },
+      {
+        "name": "Lahore General Hospital",
+        "type": "Public/Teaching",
+        "address": "Ferozepur Road",
+        "contact": "042-99264091",
+        "emergency": "042-99264091",
+        "specialties": ["Neurosurgery", "Urology"],
+        "facilities": ["Punjab Institute of Neurosciences"]
+      },
+      {
+        "name": "Pakistan Kidney and Liver Institute (PKLI)",
+        "type": "Public/Autonomous",
+        "address": "One PKLI Avenue, DHA Phase 6",
+        "contact": "042-111-117-554",
+        "emergency": "042-38107554",
+        "specialties": ["Liver Transplant", "Kidney Transplant", "Hepatobiliary"],
+        "facilities": ["State of Art Facility", "Robotic Surgery"]
+      },
+      {
+        "name": "Punjab Institute of Cardiology (PIC)",
+        "type": "Public/Specialized",
+        "address": "Jail Road",
+        "contact": "042-99203051",
+        "emergency": "042-99203051",
+        "specialties": ["Cardiology", "Cardiac Surgery"],
+        "facilities": ["Heart Hospital", "Angiography"]
+      }
+    ],
+    "islamabad": [
+      {
+        "name": "Pakistan Institute of Medical Sciences (PIMS)",
+        "type": "Public/Teaching",
+        "address": "G-8/3, Islamabad",
+        "contact": "051-9261170",
+        "emergency": "051-9261223",
+        "specialties": ["Trauma", "MCH", "Burn Center", "Cardiology"],
+        "facilities": ["Largest Public Hospital in ISL", "Children Hospital"]
+      },
+      {
+        "name": "Shifa International Hospital",
+        "type": "Private/Teaching",
+        "address": "Pitras Bukhari Road, H-8/4",
+        "contact": "051-8463666",
+        "emergency": "051-8463000",
+        "specialties": ["Organ Transplant", "Cardiology", "Oncology"],
+        "facilities": ["Helipad", "JCI Accredited", "Advanced Lab"]
+      },
+      {
+        "name": "Federal Government Services Hospital (Poly Clinic)",
+        "type": "Public",
+        "address": "Luqman Hakeem Rd, G-6/2",
+        "contact": "051-9218300",
+        "emergency": "051-9218300",
+        "specialties": ["General Medicine", "Surgery", "ENT"],
+        "facilities": ["Govt Employees Focus", "Dispensing"]
+      },
+      {
+        "name": "Kulsum International Hospital",
+        "type": "Private",
+        "address": "Kulsum Plaza, Blue Area",
+        "contact": "051-8446666",
+        "emergency": "051-8446666",
+        "specialties": ["Cardiac Care", "Pulmonology"],
+        "facilities": ["24/7 Emergency", "Private Rooms"]
+      },
+      {
+        "name": "Maroof International Hospital",
+        "type": "Private",
+        "address": "10th Ave, F-10 Markaz",
+        "contact": "051-2222920",
+        "emergency": "051-2222920",
+        "specialties": ["Surgery", "Pediatrics", "Dentistry"],
+        "facilities": ["Diagnostics", "Ambulance"]
+      },
+      {
+        "name": "National Institute of Health (NIH) Medical Center",
+        "type": "Public/Research",
+        "address": "Chak Shahzad",
+        "contact": "051-9255110",
+        "emergency": "N/A",
+        "specialties": ["Infectious Diseases", "Vaccines"],
+        "facilities": ["Reference Lab", "Research"]
+      },
+      {
+        "name": "Quaid-e-Azam International Hospital",
+        "type": "Private",
+        "address": "Golra Mor, Peshawar Road",
+        "contact": "051-8449100",
+        "emergency": "051-8449100",
+        "specialties": ["Orthopedics", "Cardiology", "Gynecology"],
+        "facilities": ["Modern Infrastructure", "Pharmacy"]
+      }
+    ],
+    "rawalpindi": [
+      {
+        "name": "Benazir Bhutto Hospital (BBH)",
+        "type": "Public/Teaching",
+        "address": "Murree Road",
+        "contact": "051-9290301",
+        "emergency": "051-9290302",
+        "specialties": ["Psychiatry", "Orthopedics", "Urology"],
+        "facilities": ["Main Public Hub", "Teaching RMU"]
+      },
+      {
+        "name": "Holy Family Hospital",
+        "type": "Public/Teaching",
+        "address": "Satellite Town",
+        "contact": "051-9290321",
+        "emergency": "051-9290321",
+        "specialties": ["Gynecology", "Pediatrics", "Surgery"],
+        "facilities": ["Large Maternity Ward", "MRI"]
+      },
+      {
+        "name": "Combined Military Hospital (CMH)",
+        "type": "Military/Public (Restricted)",
+        "address": "Tamizuddin Road",
+        "contact": "051-5613333",
+        "emergency": "051-5613333",
+        "specialties": ["Trauma", "Cardiology", "Rehab"],
+        "facilities": ["Top Military Hospital", "Civilian Wing"]
+      },
+      {
+        "name": "District Headquarter Hospital (DHQ)",
+        "type": "Public",
+        "address": "Kashmiri Bazaar",
+        "contact": "051-9270909",
+        "emergency": "051-5556311",
+        "specialties": ["General Medicine", "Eye", "ENT"],
+        "facilities": ["City Center Access"]
+      },
+      {
+        "name": "Rawalpindi Institute of Cardiology (RIC)",
+        "type": "Public/Specialized",
+        "address": "Rawal Road",
+        "contact": "051-9281111",
+        "emergency": "051-9281111",
+        "specialties": ["Cardiology", "Cardiac Surgery"],
+        "facilities": ["Specialized Heart Care", "Free for eligible"]
+      }
+    ],
+    "faisalabad": [
+      {
+        "name": "Allied Hospital",
+        "type": "Public/Teaching",
+        "address": "Sargodha Road",
+        "contact": "041-9210080",
+        "emergency": "041-9210080",
+        "specialties": ["Medicine", "Surgery", "Burn Unit"],
+        "facilities": ["Largest in Region", "Teaching FMU"]
+      },
+      {
+        "name": "Faisalabad Institute of Cardiology (FIC)",
+        "type": "Public/Specialized",
+        "address": "Serena Hotel Road",
+        "contact": "041-9201512",
+        "emergency": "041-9201512",
+        "specialties": ["Cardiology", "Vascular Surgery"],
+        "facilities": ["CCU", "Angiography"]
+      },
+      {
+        "name": "DHQ Hospital Faisalabad",
+        "type": "Public",
+        "address": "Mall Road",
+        "contact": "041-9200200",
+        "emergency": "041-9200200",
+        "specialties": ["General", "Orthopedics"],
+        "facilities": ["Central Location"]
+      },
+      {
+        "name": "Aziz Fatimah Hospital",
+        "type": "Private/Teaching",
+        "address": "Gulistan Colony",
+        "contact": "041-8780910",
+        "emergency": "041-8780910",
+        "specialties": ["Gynecology", "Pediatrics"],
+        "facilities": ["Teaching Hospital", "Private Rooms"]
+      },
+      {
+        "name": "Children Hospital Faisalabad",
+        "type": "Public/Specialized",
+        "address": "Jhang Road",
+        "contact": "041-9201401",
+        "emergency": "041-9201401",
+        "specialties": ["Pediatrics", "Neonatology"],
+        "facilities": ["Child focus"]
+      }
+    ],
+    "multan": [
+      {
+        "name": "Nishtar Hospital",
+        "type": "Public/Teaching",
+        "address": "Nishtar Road",
+        "contact": "061-9200231",
+        "emergency": "061-9200238",
+        "specialties": ["Trauma", "Surgery", "Oncology", "Dialysis"],
+        "facilities": ["Largest in South Punjab", "Burn Center"]
+      },
+      {
+        "name": "Chaudhry Pervaiz Elahi Institute of Cardiology (CPEIC)",
+        "type": "Public/Specialized",
+        "address": "Abdali Road",
+        "contact": "061-9201045",
+        "emergency": "061-9201045",
+        "specialties": ["Heart Surgery", "Cardiology"],
+        "facilities": ["Specialized Heart Care"]
+      },
+      {
+        "name": "Mukhtar A. Sheikh Hospital",
+        "type": "Private",
+        "address": "Khanewal Road",
+        "contact": "061-111-627-627",
+        "emergency": "061-6522222",
+        "specialties": ["Multi-specialty"],
+        "facilities": ["Modern Diagnostics"]
+      },
+      {
+        "name": "Children Hospital Complex Multan",
+        "type": "Public",
+        "address": "Sher Shah Road",
+        "contact": "061-9201192",
+        "emergency": "061-9201192",
+        "specialties": ["Pediatrics"],
+        "facilities": ["Child specialized"]
+      },
+      {
+        "name": "City International Hospital",
+        "type": "Private",
+        "address": "Nishtar Road",
+        "contact": "061-4510653",
+        "emergency": "061-4510653",
+        "specialties": ["Gynae", "Ortho"],
+        "facilities": ["Private care"]
+      }
+    ],
+    "peshawar": [
+      {
+        "name": "Lady Reading Hospital (LRH)",
+        "type": "Public/Teaching",
+        "address": "Soekarno Rd",
+        "contact": "091-9211430",
+        "emergency": "091-9211441",
+        "specialties": ["Trauma", "Neurosurgery", "Cardiology"],
+        "facilities": ["MTI Status", "Largest in KPK"]
+      },
+      {
+        "name": "Khyber Teaching Hospital (KTH)",
+        "type": "Public/Teaching",
+        "address": "University Road",
+        "contact": "091-9224400",
+        "emergency": "091-9224400",
+        "specialties": ["Medicine", "Surgery", "Pediatrics"],
+        "facilities": ["Teaching KMC"]
+      },
+      {
+        "name": "Hayatabad Medical Complex (HMC)",
+        "type": "Public/Teaching",
+        "address": "Phase 4, Hayatabad",
+        "contact": "091-9217140",
+        "emergency": "091-9217140",
+        "specialties": ["Gastroenterology", "Physical Therapy", "Burn Unit"],
+        "facilities": ["Physiotherapy Center"]
+      },
+      {
+        "name": "Shaukat Khanum Hospital Peshawar",
+        "type": "Private/Charitable",
+        "address": "Phase 5, Hayatabad",
+        "contact": "091-5885000",
+        "emergency": "091-5885000",
+        "specialties": ["Oncology"],
+        "facilities": ["Cancer specialized"]
+      },
+      {
+        "name": "Rehman Medical Institute (RMI)",
+        "type": "Private",
+        "address": "Phase 5, Hayatabad",
+        "contact": "091-5838000",
+        "emergency": "091-5838000",
+        "specialties": ["Cardiac Surgery", "Transplant"],
+        "facilities": ["Advanced Diagnostics"]
+      },
+      {
+        "name": "North West General Hospital",
+        "type": "Private",
+        "address": "Phase 5, Hayatabad",
+        "contact": "091-5822612",
+        "emergency": "091-5822612",
+        "specialties": ["General", "Trauma"],
+        "facilities": ["Private sector"]
+      }
+    ],
+    "quetta": [
+      {
+        "name": "Civil Hospital Quetta",
+        "type": "Public/Teaching",
+        "address": "Jinnah Road",
+        "contact": "081-9202017",
+        "emergency": "081-9202017",
+        "specialties": ["Trauma", "Medicine", "Surgery"],
+        "facilities": ["Main Provincial Hospital"]
+      },
+      {
+        "name": "Bolam Medical Complex (BMC)",
+        "type": "Public/Teaching",
+        "address": "Brewery Road",
+        "contact": "081-9213030",
+        "emergency": "081-9213030",
+        "specialties": ["Pediatrics", "Gynecology", "Medicine"],
+        "facilities": ["Teaching Hospital"]
+      },
+      {
+        "name": "Fatima Jinnah Chest Hospital",
+        "type": "Public",
+        "address": "Brewery Road",
+        "contact": "081-9213351",
+        "emergency": "N/A",
+        "specialties": ["TB", "Respiratory Diseases"],
+        "facilities": ["Specialized Chest"]
+      },
+      {
+        "name": "Akram Hospital",
+        "type": "Private",
+        "address": "Zarghoon Road",
+        "contact": "081-2826616",
+        "emergency": "081-2826616",
+        "specialties": ["General", "Surgery"],
+        "facilities": ["Private rooms"]
+      },
+      {
+        "name": "Al-Khair Medical Complex",
+        "type": "Private",
+        "address": "Zarghoon Road",
+        "contact": "081-2828080",
+        "emergency": "081-2828080",
+        "specialties": ["Multi-specialty"],
+        "facilities": ["Diagnostic"]
+      }
+    ],
+    "sialkot": [
+      {
+        "name": "Allama Iqbal Memorial Teaching Hospital",
+        "type": "Public/Teaching",
+        "address": "Khadim Ali Road",
+        "contact": "052-9250403",
+        "emergency": "052-9250403",
+        "specialties": ["Surgery", "Medicine"],
+        "facilities": ["Govt Facility"]
+      },
+      {
+        "name": "Sardar Begum Hospital",
+        "type": "Private/Teaching",
+        "address": "Kashmir Road",
+        "contact": "052-4264410",
+        "emergency": "052-4264410",
+        "specialties": ["Urology", "Gynae"],
+        "facilities": ["Teaching"]
+      },
+      {
+        "name": "Idrees Hospital",
+        "type": "Private",
+        "address": "Cantonment",
+        "contact": "052-4264278",
+        "emergency": "052-4264278",
+        "specialties": ["General"],
+        "facilities": ["Private"]
+      }
+    ],
+    "gujranwala": [
+      {
+        "name": "DHQ Hospital Gujranwala",
+        "type": "Public",
+        "address": "Hospital Road",
+        "contact": "055-9200237",
+        "emergency": "055-9200237",
+        "specialties": ["Trauma", "General"],
+        "facilities": ["Main Govt Hub"]
+      },
+      {
+        "name": "Gondal Medical Complex",
+        "type": "Private",
+        "address": "Civil Lines",
+        "contact": "055-3856680",
+        "emergency": "055-3856680",
+        "specialties": ["Surgery", "ICU"],
+        "facilities": ["Critical Care"]
+      },
+      {
+        "name": "Wazirabad Institute of Cardiology",
+        "type": "Public/Specialized",
+        "address": "Wazirabad (Nearby)",
+        "contact": "055-6609001",
+        "emergency": "055-6609001",
+        "specialties": ["Cardiology"],
+        "facilities": ["Heart Center"]
+      }
+    ],
+    "hyderabad": [
+      {
+        "name": "Liaquat University Hospital (Civil Hospital)",
+        "type": "Public/Teaching",
+        "address": "City Center",
+        "contact": "022-9200946",
+        "emergency": "022-9200946",
+        "specialties": ["Trauma", "Medicine", "Surgery"],
+        "facilities": ["Main Referral Center"]
+      },
+      {
+        "name": "Isra University Hospital",
+        "type": "Private/Teaching",
+        "address": "Hala Road",
+        "contact": "022-2030161",
+        "emergency": "022-2030161",
+        "specialties": ["Multi-specialty"],
+        "facilities": ["Teaching"]
+      },
+      {
+        "name": "NICVD Hyderabad Satellite",
+        "type": "Public/Specialized",
+        "address": "Qasimabad",
+        "contact": "021-99201271",
+        "emergency": "022-9240101",
+        "specialties": ["Cardiology"],
+        "facilities": ["Free Heart Care"]
+      },
+      {
+        "name": "Aga Khan Maternal and Child Care Centre",
+        "type": "Private",
+        "address": "Jamshoro Road",
+        "contact": "022-3614105",
+        "emergency": "022-3614105",
+        "specialties": ["Maternity", "Paeds"],
+        "facilities": ["Specialized Care"]
+      }
+    ]
+  }
+}

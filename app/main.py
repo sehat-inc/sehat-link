@@ -16,7 +16,7 @@ from contextlib import asynccontextmanager
 import os
 import uuid
 
-from routers import  doctor, follow_up, hospital, logout, patient, appointment
+from routers import  doctor, follow_up, hospital, logout, patient, appointment, degraded
 
 from api.mcp.server import mcp_app
 from core.langgraph.agent import build_triage_agent
@@ -46,6 +46,7 @@ app.include_router(hospital.router)
 app.include_router(follow_up.router)
 app.include_router(logout.router)
 app.include_router(appointment.router)
+app.include_router(degraded.router)  # Degraded mode - no auth required
 
 # Helper to run graph with proper state management
 async def run_graph_for_user(builder, user_id: int, user_message: str):

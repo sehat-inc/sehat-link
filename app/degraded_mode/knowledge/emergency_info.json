@@ -1,0 +1,127 @@
+{
+  "hotlines": {
+    "Emergency Rescue (Ambulance/Fire/Rescue)": "1122",
+    "Police Assistance": "15",
+    "Edhi Ambulance": "115",
+    "Chhipa Ambulance": "1020",
+    "Fire Brigade (Non-1122 areas)": "16",
+    "Telephone Inquiry": "1217",
+    "Motorway Police": "130",
+    "National Disaster Management": "1099",
+    "Women Helpline": "1043",
+    "Child Protection Bureau": "1121",
+    "Cyber Crime (FIA)": "1991",
+    "Gas Leakage (SNGPL/SSGC)": "1199",
+    "Electricity Complaint": "118"
+  },
+  "emergency_services": [
+    {
+      "name": "Rescue 1122",
+      "description": "State-owned emergency service providing ambulance, fire fighting, and rescue.",
+      "contact": "1122",
+      "availability": "24/7",
+      "coverage": "Punjab, KPK, Balochistan, Azad Kashmir, Gilgit-Baltistan."
+    },
+    {
+      "name": "Edhi Foundation",
+      "description": "Largest voluntary ambulance network in the world.",
+      "contact": "115",
+      "availability": "24/7",
+      "coverage": "Nationwide (Urban and Rural)."
+    },
+    {
+      "name": "Chhipa Welfare Association",
+      "description": "Non-profit ambulance and social service.",
+      "contact": "1020",
+      "availability": "24/7",
+      "coverage": "Major cities (Strong presence in Karachi)."
+    },
+    {
+      "name": "Sindh Rescue and Medical Services (Aman)",
+      "description": "Government backed modern life-support ambulance service in Sindh.",
+      "contact": "1122",
+      "availability": "24/7",
+      "coverage": "Karachi, Hyderabad, Larkana, Thatta, Sujawal."
+    },
+    {
+      "name": "Al-Khidmat Foundation",
+      "description": "NGO providing ambulance and disaster relief.",
+      "contact": "1023",
+      "availability": "24/7",
+      "coverage": "Nationwide."
+    }
+  ],
+  "poison_control": {
+    "note": "Dedicated poison control centers are rare. Go to the Emergency Room of the nearest large Teaching Hospital immediately.",
+    "hotline": "Call 1122 for transport",
+    "centers": [
+      {
+        "name": "National Poisons Control Centre (JPMC)",
+        "city": "Karachi",
+        "contact": "021-99201300",
+        "address": "JPMC, Rafiqui Shaheed Road, Karachi"
+      },
+      {
+        "name": "Mayo Hospital Emergency",
+        "city": "Lahore",
+        "contact": "042-99211100",
+        "address": "Hospital Road, Lahore"
+      },
+      {
+        "name": "PIMS Emergency",
+        "city": "Islamabad",
+        "contact": "051-9261170",
+        "address": "G-8/3, Islamabad"
+      },
+      {
+        "name": "Allied Hospital Emergency",
+        "city": "Faisalabad",
+        "contact": "041-9210080",
+        "address": "Sargodha Road, Faisalabad"
+      },
+      {
+        "name": "Nishtar Hospital Emergency",
+        "city": "Multan",
+        "contact": "061-9200231",
+        "address": "Nishtar Road, Multan"
+      }
+    ]
+  },
+  "mental_health_support": [
+    {
+      "name": "Umang Helpline",
+      "contact": "0311-7786264",
+      "description": "24/7 Mental health support and suicide prevention.",
+      "availability": "24/7",
+      "languages": ["Urdu", "English"]
+    },
+    {
+      "name": "Taskeen Health Initiative",
+      "contact": "0316-8275336",
+      "description": "Free telephonic counseling for mental health.",
+      "availability": "Mon-Sat 11AM - 11PM",
+      "languages": ["Urdu", "English", "Regional"]
+    },
+    {
+      "name": "Sehat Kahani",
+      "contact": "App based",
+      "description": "Telemedicine platform connecting patients to female doctors (includes mental health).",
+      "availability": "24/7",
+      "languages": ["Urdu", "English"]
+    },
+    {
+      "name": "Talk World",
+      "contact": "0305-5907777",
+      "description": "Psychological support services.",
+      "availability": "9AM - 5PM",
+      "languages": ["Urdu", "English"]
+    },
+    {
+      "name": "Rozan Helpline",
+      "contact": "0800-22444",
+      "description": "Counseling for emotional health, gender issues, and violence.",
+      "availability": "Mon-Sat 10AM - 6PM",
+      "languages": ["Urdu", "English"]
+    }
+  ]
+}

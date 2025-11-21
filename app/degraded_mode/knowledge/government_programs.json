@@ -1,0 +1,114 @@
+{
+  "programs": [
+    {
+      "name": "Sehat Sahulat Program (Qaumi Sehat Card)",
+      "keywords": ["sehat card", "health insurance", "free treatment"],
+      "description": "A flagship health insurance program providing free indoor hospital treatment to eligible families.",
+      "eligibility": ["Valid CNIC", "Permanent resident of covered province (Punjab, KPK, Islamabad, etc)"],
+      "benefits": ["Free hospitalization", "Heart surgeries", "Cancer treatment", "Dialysis", "C-Sections"],
+      "coverage": "Up to PKR 1 Million per family per year in empaneled public/private hospitals.",
+      "how_to_apply": "SMS CNIC number to 8500 to check eligibility. Use CNIC as card at hospital.",
+      "contact": "0800-09009",
+      "website": "https://www.pmhealthprogram.gov.pk"
+    },
+    {
+      "name": "Expanded Programme on Immunization (EPI)",
+      "keywords": ["teekay", "vaccination", "polio", "children health"],
+      "description": "Provides free vaccination against 12 vaccine-preventable diseases for children and pregnant women.",
+      "eligibility": ["Children aged 0-15 months", "Pregnant women"],
+      "benefits": ["Vaccines for TB, Polio, Diphtheria, Pertussis, Tetanus, Hep B, Meningitis, Pneumonia, Measles, Typhoid"],
+      "coverage": "Nationwide via Basic Health Units (BHUs) and vaccinators.",
+      "how_to_apply": "Visit nearest BHU, RHC or Govt Hospital. Keep Vaccination Card safe.",
+      "contact": "1166 (Polio Helpline)",
+      "website": "https://epi.gov.pk"
+    },
+    {
+      "name": "Pakistan Bait-ul-Maal (Medical Assistance)",
+      "keywords": ["financial aid", "ghareeb fund", "bait ul maal"],
+      "description": "Provides financial assistance to the poor for medical treatment.",
+      "eligibility": ["Zakat eligible", "Not covered by other insurance", "Govt hospital patient"],
+      "benefits": ["Funding for medicines", "Surgeries", "Implants", "Cancer treatment"],
+      "coverage": "Payment made directly to the treating government hospital.",
+      "how_to_apply": "Submit application with medical reports and cost estimate to district Bait-ul-Maal office.",
+      "contact": "0800-66666",
+      "website": "http://www.pbm.gov.pk"
+    },
+    {
+      "name": "Benazir Nashonuma Program",
+      "keywords": ["stunting", "nutrition", "BISP"],
+      "description": "Condition cash transfer program to address stunting and malnutrition.",
+      "eligibility": ["Pregnant/Lactating women", "Children under 2 years", "BISP beneficiaries"],
+      "benefits": ["Specialized Nutritious Food", "Cash stipends for health checks", "Health counseling"],
+      "coverage": "Select districts nationwide via Facilitation Centers.",
+      "how_to_apply": "Visit Nashonuma Center at Tehsil HQ Hospitals.",
+      "contact": "0800-26477",
+      "website": "https://bisp.gov.pk"
+    },
+    {
+      "name": "Lady Health Worker (LHW) Program",
+      "keywords": ["LHW", "family planning", "community health"],
+      "description": "Door-to-door primary health care services provided by female community workers.",
+      "eligibility": ["Residents of covered rural/peri-urban communities"],
+      "benefits": ["Maternal advice", "Child growth monitoring", "Family planning supplies", "Basic meds"],
+      "coverage": "Nationwide rural coverage.",
+      "how_to_apply": "Contact local LHW in your neighborhood.",
+      "contact": "Local BHU",
+      "website": "N/A"
+    },
+    {
+      "name": "TB Control Program",
+      "keywords": ["tap-e-diq", "tuberculosis", "DOTS"],
+      "description": "Free diagnosis and treatment for Tuberculosis.",
+      "eligibility": ["Anyone with TB symptoms"],
+      "benefits": ["Free sputum test/X-ray", "Free 6-month medicine course", "Patient support"],
+      "coverage": "All Govt Hospitals and selected private GP clinics.",
+      "how_to_apply": "Visit nearest TB center or Govt Hospital.",
+      "contact": "0800-88800",
+      "website": "http://ntp.gov.pk"
+    },
+    {
+      "name": "Malaria Control Program",
+      "keywords": ["malaria", "mosquito nets"],
+      "description": "Prevention and treatment of Malaria.",
+      "eligibility": ["Residents of high-risk malaria zones"],
+      "benefits": ["Free rapid diagnostic tests", "Free antimalarial drugs", "Distribution of treated mosquito nets (LLINs)"],
+      "coverage": "Nationwide, focus on Balochistan/Sindh/KPK.",
+      "how_to_apply": "Visit nearest BHU/RHC.",
+      "contact": "N/A",
+      "website": "http://dmc.gov.pk"
+    },
+    {
+      "name": "Punjab Social Security (PESSI)",
+      "keywords": ["mazdoor card", "social security", "industrial workers"],
+      "description": "Medical care for industrial workers and their dependents in Punjab.",
+      "eligibility": ["Registered industrial workers", "Secured workers"],
+      "benefits": ["Comprehensive medical care", "Sickness benefit", "Injury benefit", "Maternity benefit"],
+      "coverage": "PESSI Hospitals and dispensaries.",
+      "how_to_apply": "Through employer registration.",
+      "contact": "0800-73774",
+      "website": "https://pessi.punjab.gov.pk"
+    },
+    {
+      "name": "Hepatitis Prevention & Control Program",
+      "keywords": ["hepatitis", "yarqan", "PCR test"],
+      "description": "Screening, vaccination and treatment for Hepatitis B and C.",
+      "eligibility": ["General public"],
+      "benefits": ["Free Screening", "Free Vaccination (Hep B)", "Free oral medicines (Hep C)"],
+      "coverage": "Provincial programs (e.g., Chief Minister's Hepatitis Program Sindh/Punjab).",
+      "how_to_apply": "Visit designated Hepatitis Sentinel Sites in DHQ Hospitals.",
+      "contact": "1033 (Punjab)",
+      "website": "https://phcph.punjab.gov.pk"
+    },
+    {
+      "name": "Maternal, Newborn and Child Health (MNCH) Program",
+      "keywords": ["mother child", "delivery", "midwife"],
+      "description": "Improving health outcomes for mothers and children.",
+      "eligibility": ["Women of reproductive age", "Children"],
+      "benefits": ["24/7 labor room services at RHCs", "Community Midwives (CMW)", "Emergency obstetric care"],
+      "coverage": "Nationwide integration with DHQ/THQ hospitals.",
+      "how_to_apply": "Visit nearest RHC or THQ hospital.",
+      "contact": "N/A",
+      "website": "N/A"
+    }
+  ]
+}

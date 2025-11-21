@@ -1,0 +1,12 @@
+# Degraded Mode Dependencies
+
+# Core (already in main app)
+fastapi
+pydantic
+
+# LLM Providers
+openai>=1.0.0  # For OpenAI GPT-4o-mini
+
+# Optional: Local LLM support
+# Uncomment if using local models
+# ollama>=0.1.0
