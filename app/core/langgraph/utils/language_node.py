@@ -23,7 +23,7 @@ class LanguageDetectorNode(Node):
 
         query_prompt = language_detector_prompt(text)
 
-        response = await self.ainvoke(query_prompt)
+        response = await self.llm.ainvoke(query_prompt)
         
         return {
             "detected_language": response,

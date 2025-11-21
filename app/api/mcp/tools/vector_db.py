@@ -1,10 +1,9 @@
-import os
 import json
 from typing import Annotated, List, Dict
 from pydantic import Field
 from openai import OpenAI
 from pinecone import Pinecone
-from api.mcp.prompts.decompose import decompose_prompt
+from ..prompts.decompose import decompose_prompt
 from fastmcp import Context
 
 class PineconeQuery:
@@ -60,7 +59,7 @@ class PineconeQuery:
         ctx: Context,
         question: Annotated[str, Field(description="The question or query to answer")],
         top_k_per_query: Annotated[int, Field(description="Amount of chunks to retrieve per query", ge=1, le=10)] = 5,
-        namespace: Annotated[str, Field(description="Pinecone namespace to query")] = "eligibility-namespace",
+        namespace: Annotated[str, Field(description="Pinecone namespace to query")] = "__default__",
         decompose: Annotated[bool, Field(description="Whether to decompose the question into multiple queries")] = True,
     ) -> Dict:
         """
@@ -126,7 +125,8 @@ class PineconeQuery:
                 await ctx.debug(f"Executing Query: {sub_query}")
             
             query_vector = self._embed_text(sub_query)
-            await ctx.info(f"VECTOR 1: {query_vector}")
+            # this nigga was making my terminal sick
+            # await ctx.info(f"VECTOR 1: {query_vector}")
             results = self._query_pinecone(query_vector, top_k_per_query, namespace)
             all_results[sub_query] = {
                 "purpose": purpose,
@@ -152,7 +152,7 @@ class PineconeQuery:
         ctx: Context,
         query: Annotated[str, Field(description="Search query")],
         top_k: Annotated[int, Field(description="Number of results", ge=1, le=15)] = 5,
-        namespace: Annotated[str, Field(description="Pinecone namespace")] = "eligibility-namespace",
+        namespace: Annotated[str, Field(description="Pinecone namespace")] = "__default__",
     ) -> List[Dict]:
         """
         Direct, simple query to Pinecone without any decomposition.

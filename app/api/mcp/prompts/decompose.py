@@ -1,7 +1,7 @@
 def decompose_prompt(question: str) -> str:
 
     return f"""
-    Analyze this question and break it down into 2-5 simple, focused sub-queries that would help answer it comprehensively.
+    Analyze this question and break it down into 2 simple, focused sub-queries that would help answer it comprehensively.
 
     Question: {question}
 
