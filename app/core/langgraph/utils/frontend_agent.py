@@ -1,5 +1,6 @@
 from typing import Dict, Any, Union, AsyncGenerator
 import json
+from langsmith import traceable
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from typing_extensions import TypedDict
 from pydantic import BaseModel, Field
@@ -21,6 +22,8 @@ class FrontendFeedback(BaseModel):
     response: str = Field(description="The calm and empathetic response to the user's query")
     symptom_trigger: bool = Field(description="True if handoff to Symptom agent should occur else false")
     programme_trigger: bool = Field(description="True if handoff to Programme agent should occur else false")
+    doctor_trigger: bool = Field(description="True if handoff to Doctor agent should occur else false")
+
 
 logger = get_logger("FRONTEND AGENT")
 
@@ -33,7 +36,14 @@ class TriageAgent(Node):
                  temperature: float = 0.7):
         super().__init__(name=name, temperature=temperature)
     
-    
+        self.ALLOWED_TOOLS = [
+            "Programme_Eligibility_KB_Direct_Query",
+            "Programme_Eligibility_KB_Smart_Query",
+        ]
+
+
+
+    @traceable
     async def run(self, state: MedicalAgentState):
         """
         Execution Logic
@@ -49,7 +59,15 @@ class TriageAgent(Node):
 
         # Bind Tools with Model (VERY IMPORTANT)
         tools = await client.get_tools()
-        model_with_tools = self.llm.bind_tools(tools)
+
+        filtered_tools = [
+            tool for tool in tools
+            if tool.name in self.ALLOWED_TOOLS
+        ]
+
+        logger.info(f"Allowed Tools for Program: {[t.name for t in filtered_tools]}")
+        
+        model_with_tools = self.llm.bind_tools(filtered_tools)
         
 
         # Prepare Messages
@@ -57,11 +75,11 @@ class TriageAgent(Node):
         system_prompt = frontend_agent_prompt(state)
         if len(messages) == 1 and isinstance(messages[0], HumanMessage):
             system_message = SystemMessage(content=system_prompt)
-            messages = [system_message] + messages
+            init_messages = [system_message] + messages
         else:
-            system_message = [SystemMessage(content=system_prompt)] + messages
+            init_messages = [SystemMessage(content=system_prompt)] + messages
 
-        response = await model_with_tools.ainvoke(messages)
+        response = await model_with_tools.ainvoke(init_messages)
     
         logger.info(f"First LLM: {response}")
 
@@ -74,6 +92,7 @@ class TriageAgent(Node):
         Rules:
         - Set `"symptom_trigger": true` ONLY if the user mentions symptoms or a health concern.
         - Set `"programme_trigger": true` ONLY if the user mentions healthcare programmes, insurance, or eligibility.
+        - Set `"doctor_trigger": true` ONLY if the user mentions he needs to find doctors or needs help finding relevant doctors.
         - If both are irrelevant → both should be false.
         - **You must NEVER set both to true at the same time.**
 
@@ -87,6 +106,7 @@ class TriageAgent(Node):
             "response": The response given by the assistant. Make sure the main text as is.
             "symptom_trigger": true | false
             "programme_trigger": true | false
+            "doctor_trigger": true | false
         }}
 
         You do NOT need to mention routing or state changes to the user — just produce the correct structured output.
@@ -96,7 +116,8 @@ class TriageAgent(Node):
             structured_llm = self.llm.with_structured_output(
                 schema=FrontendFeedback.model_json_schema(), method="json_schema"
             )
-            response = await structured_llm.ainvoke(messages)
+            struct_messages = messages + [routing_prompt]
+            response = await structured_llm.ainvoke(struct_messages)
             
             logger.info(f"SECOND LLM RESPONSE: {response}")
             
@@ -107,7 +128,8 @@ class TriageAgent(Node):
 
         symptom_trigger = response["symptom_trigger"] 
         programme_trigger = response["programme_trigger"] 
-        logger.info(f"TRIGGERS-----------\nSYMPTOM: {symptom_trigger}\nPROGRAM: {programme_trigger}")
+        doctor_trigger = response["doctor_trigger"] 
+        logger.info(f"TRIAGE TRIGGERS-----------\nSYMPTOM: {symptom_trigger}\nPROGRAM: {programme_trigger}\nDOCTOR: {doctor_trigger}")
        
 
         response_text = response["response"]
@@ -124,6 +146,12 @@ class TriageAgent(Node):
             
             return delta
         
+        if doctor_trigger == True or doctor_trigger == "True":
+            delta["current_agent"] = "doctor_agent"
+        
+            return delta
+        
+        delta["current_agent"] = "triage_agent"
         delta["messages"] = [
             AIMessage(
                 content=response_text

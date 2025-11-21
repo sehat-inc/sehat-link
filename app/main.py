@@ -20,7 +20,7 @@ from routers import  doctor, follow_up, hospital, logout, patient, appointment, 
 
 from api.mcp.server import mcp_app
 from core.langgraph.agent import build_triage_agent
-from core.langgraph.utils.state import MedicalAgentSession, MedicalAgentState
+from core.langgraph.utils.state import MedicalAgentState
 from routers.patient import load_initial_state_from_db
 from core.langgraph.utils.tool_manager import MCPToolManager
 

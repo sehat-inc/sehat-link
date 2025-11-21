@@ -1,6 +1,6 @@
 .PHONY: frontend server all clean test docker
 
-REDIS_CONTAINER=redis-stack
+REDIS_CONTAINER=redis-stack-instance
 
 frontend:
 	cd frontend/sehat-ui && npm run dev
