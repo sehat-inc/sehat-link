@@ -156,7 +156,8 @@ async def trigger_call_to_node_backend(
     doctor_id: str,
     doctor_name: str,
     patient_id: str,
-    patient_name: str
+    patient_name: str,
+    symptoms: str,
 ) -> Optional[Dict]:
     """Trigger a call via the Node.js backend."""
     endpoint = f"{NODE_BACKEND_URL}/api/initiate-call"
@@ -164,7 +165,8 @@ async def trigger_call_to_node_backend(
         "doctorId": doctor_id,
         "doctorName": doctor_name,
         "patientId": patient_id,
-        "patientName": patient_name
+        "patientName": patient_name,
+        "symptoms": symptoms
     }
 
     async with httpx.AsyncClient(timeout=10.0) as client:
@@ -192,39 +194,45 @@ async def initiate_appointment(request: InitiateAppointmentRequest):
     
     logger.info(f"✅ State found successfully {user_id}")
 
-    symptoms = state.get("symptoms_collected", [])
-    if not symptoms:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Symptoms not collected yet."
-        )
-    logger.info("❌ State does not have symptoms")
-
-    problem_type = state.get("detected_problem_type")
-    if not problem_type or problem_type == "None":
-        problem_type = "General"
-    logger.warning("No problem detected, fallback to general")
+    symptoms_list = state.get("symptoms_collected", [])
+    symptoms_str = json.dumps(symptoms_list) if symptoms_list else ""
     
-    from database import get_supabase
-    supabase = get_supabase()
-    doctors_response = supabase.table("doctors").select("*").execute()
-    if not doctors_response.data:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No doctors available")
+    selected_doctor = {}
+    #Logic: here
+    if symptoms_list:
+        problem_type = state.get("detected_problem_type")
+        if not problem_type or problem_type == "None":
+            problem_type = "General"
 
-    # Select best doctor
-    selected_doctor = await select_best_doctor(
-        doctors=doctors_response.data,
-        symptoms=state["symptoms_collected"],
-        problem_type=state["detected_problem_type"],
-        user_location=state.get("user_location", "")
-    )
+        from database import get_supabase
+        supabase = get_supabase()
+        doctors_response = supabase.table("doctors").select("*").execute()
+        if not doctors_response.data:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No doctors available")
 
+        # Select best doctor
+        selected_doctor = await select_best_doctor(
+            doctors=doctors_response.data,
+            symptoms=state["symptoms_collected"],
+            problem_type=state["detected_problem_type"],
+            user_location=state.get("user_location", "")
+        )
+    else:
+        logger.warning("No symptoms collected, Selecting Default Doctor.")
+        selected_doctor = {
+            "id": "184",
+            "name": "Akbar Niazi",
+            "specialization": "General Physician",
+            "email": "akbar.niazi@anth.pk",
+            "city": "Islamabad"
+        }
     # Trigger call
     call_response = await trigger_call_to_node_backend(
         doctor_id=str(selected_doctor["id"]),
         doctor_name=selected_doctor["name"],
         patient_id=str(state["user_id"]),
-        patient_name=state.get("patient_name", f"Patient {state['user_id']}")
+        patient_name=state.get("patient_name", f"Patient {state['user_id']}"),
+        symptoms=symptoms_str
     )
 
     return {
