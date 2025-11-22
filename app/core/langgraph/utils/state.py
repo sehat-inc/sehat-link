@@ -81,6 +81,29 @@ def _normalize_val(v):
         return None if s == "" or s.lower() == "none" else s
     return v
 
+def deduplicate_merge(current: Optional[List[str]], new: Optional[List[str]]) -> List[str]:
+    """
+    Merges new strings into the existing list, removing duplicates 
+    while preserving the original insertion order.
+    """
+    # Handle None types safely
+    current = current or []
+    new = new or []
+    
+    # Combine lists
+    combined = current + new
+    
+    # Deduplicate while preserving order
+    seen = set()
+    result = []
+    for item in combined:
+        # Clean whitespace just in case
+        clean_item = item.strip()
+        if clean_item and clean_item not in seen:
+            seen.add(clean_item)
+            result.append(clean_item)
+            
+    return result
 
 class MedicalAgentState(TypedDict):
     """
@@ -148,9 +171,9 @@ class MedicalAgentState(TypedDict):
     requires_deep_research: bool
     
     # Shared Knowledge
-    shared_facts: Annotated[list, operator.add]
-    shared_warnings: Annotated[list, operator.add]
-    red_flags: Annotated[list, operator.add]
+    shared_facts: Annotated[list, deduplicate_merge]
+    shared_warnings: Annotated[list, deduplicate_merge]
+    red_flags: Annotated[list, deduplicate_merge]
 
     # prescription
     prescription_data: Optional[Dict[str, Any]]

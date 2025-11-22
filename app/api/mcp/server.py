@@ -6,6 +6,7 @@ from openai import OpenAI
 
 from .tools.vector_db import PineconeQuery
 from .tools.facility_finder import FacilityFinder 
+from .tools.baba_qadeer_tool import ask_baba_qadeer
 
 load_dotenv()
 
@@ -42,6 +43,14 @@ facility_tool = FacilityFinder(
     gmaps_api_key=str(GOOGLE_MAPS_API_KEY), 
     supabase_url=str(SUPABASE_URL), 
     supabase_key=str(SUPABASE_KEY)
+)
+
+
+
+mcp.tool(
+    ask_baba_qadeer,
+    name="Baba_Qadeer_Tool",
+    description="Returns Returns a random line of wisdom from Baba Qadeer."
 )
 
 mcp.tool(
