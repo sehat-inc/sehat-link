@@ -136,8 +136,6 @@ class TriageAgent(Node):
         
         if symptom_trigger == True or symptom_trigger == "True":
             delta["current_agent"] = "symptom_agent"
-            delta["symptom_init"] = True
-            delta["symptom_trigger"] = True
             
             return delta
 

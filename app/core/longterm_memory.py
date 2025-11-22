@@ -90,30 +90,3 @@ class PineconeMemory:
             parsed.append(case)
         
         return parsed
-    
-    # async def store_medical_knowledge(
-    #     self,
-    #     knowledge_id: str,
-    #     content: str,
-    #     metadata: Dict
-    # ):
-    #     """
-    #     Store medical knowledge base (symptoms, conditions, treatments).
-    #     Global namespace for all users.
-    #     """
-    #
-    #     embedding = await self.embeddings.aembed_query(content)
-    #
-    #     self.index.upsert(
-    #         vectors=[{
-    #             "id": knowledge_id,
-    #             "values": embedding,
-    #             "metadata": {
-    #                 "content": content,
-    #                 "category": metadata.get("category", ""),
-    #                 "condition": metadata.get("condition", ""),
-    #                 "type": "knowledge"
-    #             }
-    #         }],
-    #         namespace="medical_knowledge"
-    #     )
