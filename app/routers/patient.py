@@ -8,7 +8,7 @@ from auth_utils import hash_password, verify_password, create_access_token, get_
 from database import get_supabase, fetch_longterm_by_user_id
 from models import PatientSignUp, PatientLogin, Token
 
-from core.langgraph.utils.state import MedicalAgentState, MedicalAgentSession
+from core.langgraph.utils.state import MedicalAgentState
 from core.logging import get_logger
 
 def safe_str(x):

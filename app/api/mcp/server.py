@@ -12,6 +12,7 @@ load_dotenv()
 PINECONE_API = os.getenv("PINECONE_API")
 PC_INDEX_NAME = os.getenv("PC_INDEX_NAME")
 PC_INDEX_NAMEV2 = os.getenv("PC_INDEX_NAMEV2")
+PC_INDEX_NAMEV3 = os.getenv("PC_INDEX_NAMEV3")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY") or ""
 
 GOOGLE_MAPS_API_KEY = os.getenv("GOOGLE_MAPS_API_KEY")
@@ -30,9 +31,11 @@ mcp = FastMCP(
 )
 
 #NOTE: SYMPTOM AGENT
-pc_ctx_tool = PineconeQuery(str(PINECONE_API), str(OPENAI_API_KEY), str(PC_INDEX_NAME))
+symptom_tool = PineconeQuery(str(PINECONE_API), str(OPENAI_API_KEY), str(PC_INDEX_NAME))
 #NOTE: ELIGIBILITY AGENT
-pc_ctx_tool2 = PineconeQuery(str(PINECONE_API), str(OPENAI_API_KEY), str(PC_INDEX_NAMEV2))
+program_tool = PineconeQuery(str(PINECONE_API), str(OPENAI_API_KEY), str(PC_INDEX_NAMEV2))
+
+doctor_tool = PineconeQuery(str(PINECONE_API), str(OPENAI_API_KEY), str(PC_INDEX_NAMEV3))
 
 #NOTE: Closest Facility Finder
 facility_tool = FacilityFinder(
@@ -42,7 +45,7 @@ facility_tool = FacilityFinder(
 )
 
 mcp.tool(
-    pc_ctx_tool.smart_query,
+    symptom_tool.smart_query,
     name="Symptom_Knowledge_Base_Smart_Query",
     description="""Intelligently query Pinecone by first breaking down complex questions
     into sub-queries, then aggregating results. Uses LLM to decompose questions.""",
@@ -53,16 +56,21 @@ mcp.tool(
 )
 
 mcp.tool(
-    pc_ctx_tool.direct_query,
+    symptom_tool.direct_query,
     name="Symptom_Knowledge_Base_Direct_Query",
     description="Direct Pinecone query without decomposition for simple lookups"
 )
 
 mcp.tool(
-    pc_ctx_tool2.smart_query,
+    program_tool.smart_query,
     name="Programme_Eligibility_KB_Smart_Query",
     description="""Intelligently query Pinecone by first breaking down complex questions
-    into sub-queries, then aggregating results. Uses LLM to decompose questions.""",
+    into sub-queries, then aggregating results. Uses LLM to decompose questions.
+    
+    NAMESPACE SELECTION GUIDE:
+    - USE '__default__' for symptom/medical retrieval
+    - USE 'eligibility-namespace' for program related retrieval
+    """,
     annotations={
         "readOnlyHint": True,
         "openWorldHint": True
@@ -70,7 +78,7 @@ mcp.tool(
 )
 
 mcp.tool(
-    pc_ctx_tool2.direct_query,
+    program_tool.direct_query,
     name="Programme_Eligibility_KB_Direct_Query",
     description="Direct Pinecone query without decomposition for simple lookups"
 )
@@ -86,6 +94,51 @@ mcp.tool(
     }
 )
 
+    
+mcp.tool(
+    doctor_tool.smart_query_with_filters,
+    name="Doctor_KB_Smart_Query",
+    description="""Intelligently query Pinecone by first breaking down complex questions
+    into sub-queries, then aggregating results. Uses LLM to decompose questions.
+    
+    NAMESPACE SELECTION GUIDE:
+    - USE '__default__' for symptom/medical retrieval
+    - USE 'doctor-namespace' for doctor related retrieval
+
+    FILTERING (All use OR logic):
+    - Specialty filter: Matches ANY of the provided specialties
+      Example: ["Cardiologist", "General Physician"] finds doctors who are EITHER cardiologists OR general physicians
+    - City filter: Matches ANY of the provided cities
+      Example: ["Lahore", "Karachi"] finds doctors in EITHER Lahore OR Karachi
+    - Combined filters: Doctor must match at least one specialty AND at least one city
+      Example: specialties=["Cardiologist"], cities=["Lahore", "Karachi"] 
+      finds cardiologists in (Lahore OR Karachi)
+    
+    COMMON USE CASES:
+    1. Find specific specialists in one city:
+       specialties=["Cardiologist"], cities=["Lahore"]
+    
+    2. Find any of several specialists across multiple cities:
+       specialties=["Cardiologist", "General Physician", "Dermatologist"], 
+       cities=["Lahore", "Karachi", "Islamabad"]
+    
+    3. Find all doctors in specific cities (no specialty filter):
+       cities=["Lahore", "Karachi"]
+    
+    4. Find specific specialty across all cities (no city filter):
+       specialties=["Pediatrician"]
+    """,
+    annotations={
+        "readOnlyHint": True,
+        "openWorldHint": True
+    }
+)
+
+mcp.tool(
+    doctor_tool.direct_query,
+    name="Doctor_KB_Direct_Query",
+    description="Direct Pinecone query without decomposition for simple lookups"
+)
 
 mcp_app = mcp.http_app(path="/mcp")
 

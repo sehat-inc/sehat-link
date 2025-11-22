@@ -16,16 +16,16 @@ class UrgencyDetectorNode(Node):
         detected_urgency: Literal["Emergency", "High", "Medium", "Low"]
     """
     def __init__(self, name: str = "urgency_detector", temperature: float = 0.6):
-        super().__init__(name=name, temperature=temperature, allowed_tools=None)
+        super().__init__(name=name, temperature=temperature)
         
-    async def create_urgency_agent(self, state: MedicalAgentState):
+    async def run(self, state: MedicalAgentState):
         
         symptoms = state.get("symptoms_collected", [])
 
         if not symptoms:
             logger.info("UrgencyDetectorNode skipped - no symptoms collected yet")
             # Return state unchanged
-            return {"current_agent": "urgency_detector"}        
+            return {"current_agent": "symptom_agent"}
         
         symptom_lines = []
         for s in state["symptoms_collected"]:
@@ -41,7 +41,7 @@ class UrgencyDetectorNode(Node):
         
         message = f"{prompt} \nPatient symptoms: \n{symptom_text}"
 
-        response = await self.ainvoke(message)
+        response = await self.llm.ainvoke(message)
 
         return {
             "detected_urgency": response,
