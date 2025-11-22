@@ -182,17 +182,17 @@ class TriageAgent(Node):
 
         response_text = response["response"]
         
-        if symptom_trigger == True or symptom_trigger == "True":
+        if symptom_trigger == True: 
             delta["current_agent"] = "symptom_agent"
             
             return delta
 
-        if programme_trigger == True or programme_trigger == "True":
+        if programme_trigger == True:
             delta["current_agent"] = "programme_eligibility_agent"
             
             return delta
         
-        if doctor_trigger == True or doctor_trigger == "True":
+        if doctor_trigger == True: 
             delta["current_agent"] = "doctor_agent"
         
             return delta

@@ -211,10 +211,10 @@ class DoctorAgentNode(Node):
 
         logger.info(f"SYMPTOM TRIGGERS-----------: \nPROGRAM: {programme_trigger}\nSYMPTOM: {symptom_trigger}")
 
-        if symptom_trigger == True or symptom_trigger == "True":
+        if symptom_trigger == True:
             delta["current_agent"] = "symptom_agent"
     
-        if programme_trigger == True or programme_trigger == "True":
+        if programme_trigger == True: 
             delta["current_agent"] = "programme_eligibility_agent"
         
         if doctor_collected and len(doctor_collected) > 0:

@@ -231,10 +231,10 @@ class ProgrammeEligibilityNode(Node):
         shared_warnings = parsed.get("shared_warnings", "")
         red_flags = parsed.get("red_flags", "")
         
-        if symptom_trigger == True or symptom_trigger == "True":
+        if symptom_trigger == True: 
             delta["current_agent"] = "symptom_agent"
     
-        if doctor_trigger == True or doctor_trigger == "True":
+        if doctor_trigger == True: 
             delta["current_agent"] = "doctor_agent"
         
         delta["shared_facts"] = shared_facts
