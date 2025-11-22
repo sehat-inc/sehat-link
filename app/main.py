@@ -16,8 +16,7 @@ from contextlib import asynccontextmanager
 import os
 import uuid
 
-from routers import  doctor, follow_up, hospital, logout, patient, appointment, degraded
-from routers import find_location
+from routers import  doctor, follow_up, hospital, logout, patient, appointment, degraded, find_location
 from api.mcp.server import mcp_app
 from core.langgraph.agent import build_triage_agent
 from core.langgraph.utils.state import MedicalAgentState
@@ -153,7 +152,7 @@ async def chat_socket(socket: WebSocket):
                     call_trigger = False
                 
                 logger.info(f"RESULT: {result}")
-
+                logger.info(f"call trigger: {call_trigger}")
                 # Send response back to client
                 response_payload = {
                     "call_trigger": call_trigger,
