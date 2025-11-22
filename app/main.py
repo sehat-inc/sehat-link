@@ -86,9 +86,9 @@ async def run_graph_for_user(builder, user_id: int, user_message: str):
     graph = builder.compile(checkpointer=checkpointer)
     
     # NOTE: DO NOT USE THIS IN PRODUCTION
-    png_bytes = graph.get_graph(xray=True).draw_mermaid_png()
-    with open("graph.png", "wb") as f:
-        f.write(png_bytes)
+    # png_bytes = graph.get_graph(xray=True).draw_mermaid_png()
+    # with open("graph.png", "wb") as f:
+    #     f.write(png_bytes)
 
     try:
         current_state = await graph.aget_state(config)
