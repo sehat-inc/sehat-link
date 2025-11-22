@@ -40,4 +40,7 @@ dependencies = [
     "langgraph-checkpoint-redis>=0.1.2",
     "langgraph-swarm>=0.0.2",
     "langchain-mcp-adapters>=0.1.13",
+    "bcrypt>=5.0.0",
+    "googlemaps>=4.10.0",
+    "ollama>=0.6.1",
 ]
