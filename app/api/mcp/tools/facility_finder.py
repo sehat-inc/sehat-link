@@ -9,7 +9,7 @@ class FacilityFinder:
     A class to find nearby medical facilities using user location from Supabase
     and the Google Maps Places API.
     """
-    def __init__(self, gmaps_api_key: str, supabase_url: str, supabase_key: str, table_name: str = "users"):
+    def __init__(self, gmaps_api_key: str, supabase_url: str, supabase_key: str, table_name: str = "patient_locations"):
         self.gmaps = googlemaps.Client(key=gmaps_api_key)
         self.supabase: Client = create_client(supabase_url, supabase_key)
         self.table_name = table_name
