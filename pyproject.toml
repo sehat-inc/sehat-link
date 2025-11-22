@@ -40,4 +40,5 @@ dependencies = [
     "langgraph-checkpoint-redis>=0.1.2",
     "langgraph-swarm>=0.0.2",
     "langchain-mcp-adapters>=0.1.13",
+    "httpx>=0.28.1",
 ]
