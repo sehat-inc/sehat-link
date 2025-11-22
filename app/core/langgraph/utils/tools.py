@@ -32,7 +32,9 @@ async def mcp_tool_node(state: MedicalAgentState):
 
     # Execute all Tools Calls
     tool_messages = await executor.execute_tool_calls(last_message.tool_calls)
-
+    
+    logger.info(f"TOOL RESPONSE: {tool_messages}")
+    
     error_count = sum(1 for msg in tool_messages if hasattr(msg, "status") and msg.status == "error")
     
     # Update state

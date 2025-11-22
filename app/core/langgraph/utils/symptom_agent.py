@@ -26,15 +26,20 @@ logger = get_logger("SYMPTOM AGENT")
 class Symptom(BaseModel):
     symptom: Optional[str] = Field(description="The name of the symptom")
     duration: Optional[str] = Field(description="The duration of how long the symptom have occured")
+    severity: Optional[str] = Field(description="Severity: mild, moderate, severe, etc.")
     location: Optional[str] = Field(description="Where the patient is feeling the symptom")
     additional_details: Optional[str] = Field(description="Any additional details about the symptom")
-    
+     
 
 class SymptomAgentFeedback(BaseModel):
     response: str = Field(description="The calm and empathetic response to the user's query")
-    symptoms: Optional[List[Symptom]]
+    symptoms: Optional[List[Symptom]] = Field(default_factory=list)
     programme_trigger: bool = Field(description="True if handoff to Programme agent should occur else false")
     doctor_trigger: bool = Field(description="True if handoff to Doctor agent should occur else false")
+    shared_facts: Optional[List[str]] = Field(default_factory=list, description="Shared facts for other agents")
+    shared_warnings: Optional[List[str]] = Field(default_factory=list, description="Shared warnings for other agents")
+    red_flags: Optional[List[str]] = Field(default_factory=list, description="Shared Red Flags for other agents")
+    symptom_research_result: Optional[str] = Field(default_factory=str, description="The Research Results/Summary given by LLM if Tool is called.")
 
 class SymptomAgentNode(Node):
     """
@@ -66,8 +71,6 @@ class SymptomAgentNode(Node):
 
         delta = {}
         
-
-
         tools = await client.get_tools()
         
         filtered_tools = [
@@ -92,80 +95,175 @@ class SymptomAgentNode(Node):
         last_user_msg = messages[-1].content if messages else ""
         
         structured_prompt = f"""
-        You are responsible for parsing all information into the correct format and determining routing triggers based on the conversation context.
+    # ROLE: Medical Conversation Router & Data Parser
 
-        IMPORTANT: Always check the <action></action> tag in the ASSISTANT RESPONSE to understand the current flow state.
+    You are the system logic engine for Sehat Link. Your job is to parse the output from "Nora" (the Symptom Agent) and the User's latest message to determine the next system state.
 
-        ACTION TAG MEANINGS:
-        - <action>continue_gathering</action>: Symptom agent is still collecting information → Keep ALL triggers FALSE
-        - <action>use_research_tool</action>: Symptom agent is researching symptoms → Keep ALL triggers FALSE  
-        - <action>offer_doctor_search</action>: Symptom agent is ASKING if user wants doctor recommendations → Keep ALL triggers FALSE (this is just an offer, not confirmation)
+    You must map the unstructured XML/Text output into a strict JSON structure matching the `SymptomAgentFeedback` schema.
 
-        CRITICAL ROUTING RULES:
+    # INPUTS
+    1. **User's Last Message:** "{last_user_msg}"
+    2. **Nora's (Agent) Response:** 
+    {tool_llm_response}
 
-        1. **doctor_trigger = True** ONLY when:
-           - User EXPLICITLY agrees to find/see a doctor in their MOST RECENT message
-           - User confirms they want doctor recommendations or referrals
-           - User says "yes" to finding a doctor (after being asked)
-           - Examples: "yes, find me a doctor", "haan, doctor recommend karein", "I want to see a doctor", "please help me find a doctor"
-           
-           **doctor_trigger = False** when:
-           - Symptom agent is just offering to find a doctor (action = offer_doctor_search)
-           - User is still describing symptoms
-           - User hasn't explicitly agreed to finding a doctor yet
-           - User is asking questions about their symptoms
-           - Examples: "what's wrong with me?", "is this serious?", "I also have pain"
+    # INSTRUCTIONS
 
-        2. **programme_trigger = True** ONLY when:
-           - User asks about healthcare programs, financial assistance, or eligibility
-           - User mentions inability to afford treatment
-           - User asks about insurance, subsidies, or free services
-           - Examples: "I can't afford this", "do you have free programs?", "insurance coverage", "financial help"
-           
-           **programme_trigger = False** for all other queries
+    ## 1. Data Parsing (XML to JSON)
+    You must extract data from Nora's XML tags and map them to the output schema:
 
-        3. **symptom_trigger = True** ONLY when:
-           - User mentions NEW symptoms in their most recent message
-           - User needs to return to symptom discussion after being in doctor/program flow
-           - Examples: "I also have a cough now", "my condition changed", "new symptom appeared"
-           
-           **symptom_trigger = False** when:
-           - User is confirming doctor search
-           - User is discussing logistics or location
-           - Action tag shows continue_gathering or use_research_tool
+    - **response**: Extract text from `<response>...</response>`.
+    - **symptoms**: Parse the JSON inside `<data_extraction>` -> `symptoms_collected`. Map fields:
+        - `name` -> `symptom`
+        - `severity` -> `severity` (if missing, put "unknown")
+        - `duration` -> `duration`
+        - `location` -> `location`
+        - `details`/`type` -> `additional_details`
+    - **shared_facts**: Extract from `<data_extraction>` -> `shared_facts`.
+    - **shared_warnings**: Extract from `<data_extraction>` -> `shared_warnings`.
+    - **red_flags**: Extract from `<data_extraction>` -> `red_flags`.
+    - **symptom_research_result**: Extract text from `<symptom_research_result>`. 
+      - **IMPORTANT:** The output schema requires this to be a **Dict**. 
+      - Format it as: `{{ "summary": "extracted text..." }}`. If empty, use `{{"summary": null}}`.
 
-        CURRENT CONVERSATION: USER'S MOST RECENT MESSAGE: {last_user_msg}
-        ASSISTANT'S RESPONSE: {tool_llm_response}
+    ## 2. Routing Logic (Triggers)
+    Determine `doctor_trigger` and `programme_trigger`. 
+    **DEFAULT TO FALSE** unless specific criteria are met.
 
-        DECISION PROCESS:
-        1. First, check the <action> tag in ASSISTANT RESPONSE
-        2. If action is "continue_gathering" or "use_research_tool" → ALL triggers = False
-        3. If action is "offer_doctor_search" → Check if USER explicitly agreed in their message
-        4. Analyze USER'S MOST RECENT MESSAGE intent and keywords
-        5. Set triggers accordingly
+    ### A. Doctor Trigger (`doctor_trigger`)
+    **Set to TRUE only if:**
+    1. The User **EXPLICITLY** asks for a doctor/specialist in `last_user_msg` (e.g., "find me a doctor", "I need to see someone", "book appointment").
+    2. The User replies "Yes" to a previous offer to find a doctor.
+    
+    **Set to FALSE if:**
+    - Nora's `<action>` is `offer_doctor_search` BUT the user has NOT said "yes" yet. (Nora is *offering*, not confirming).
+    - Nora's `<action>` is `continue_gathering`, `call_smart_query`, or `call_direct_query`.
+    - User is still describing symptoms.
 
-        OUTPUT STRUCTURE:
-        {{
-            "response": "Extract the text from <response></response> tags in ASSISTANT RESPONSE",
-            "doctor_trigger": true/false,
-            "programme_trigger": true/false,
-            "symptom_trigger": true/false,
-            "symptoms": [
-                {{
-                    "symptom": "name of symptom",
-                    "severity": "mild/moderate/severe/unknown",
-                    "duration": "timeframe or unknown",
-                    "location": "body location or n/a",
-                    "additional_details": "any extra context"
-                }}
-            ]
-        }}
+    ### B. Programme Trigger (`programme_trigger`)
+    **Set to TRUE only if:**
+    1. User mentions financial difficulty (e.g., "cannot afford", "too expensive", "no money").
+    2. User asks about government schemes, insurance, Sehat Card, or free clinics.
+    
+    **Set to FALSE otherwise.**
 
-        CRITICAL REMINDERS:
-        - "offer_doctor_search" is NOT the same as user agreeing → doctor_trigger stays FALSE until explicit user confirmation
-        - Only the user's EXPLICIT agreement triggers doctor_trigger = True
-        - When in doubt, keep triggers FALSE to avoid premature routing
-        """
+    # OUTPUT SCHEMA (JSON)
+    Target class: `SymptomAgentFeedback`
+
+    {{
+        "response": "String",
+        "symptoms": [List of Symptom objects],
+        "programme_trigger": Boolean,
+        "doctor_trigger": Boolean,
+        "shared_facts": [List of strings],
+        "shared_warnings": [List of strings],
+        "red_flags": [List of strings],
+        "symptom_research_result": {{ "summary": "String or Null" }}
+    }}
+
+    # EXAMPLES
+
+    ## Example 1: Gathering Info (English)
+    **User:** "I have a throbbing headache on the left side."
+    **Nora Action:** `<action>continue_gathering</action>`
+    **Nora Data:** `<data_extraction> {{ "symptoms_collected": [name": "headache", "severity": "severe", "location": "left side"] }} ...`
+
+    **Output:**
+    ```json
+    {{
+        "response": "I understand. How long have you had this headache?",
+        "symptoms": [
+            {{
+                "symptom": "headache", 
+                "duration": "unknown", 
+                "location": "left side", 
+                "additional_details": "severity: severe"
+            }}
+        ],
+        "programme_trigger": false,
+        "doctor_trigger": false,
+        "shared_facts": [],
+        "shared_warnings": [],
+        "red_flags": [],
+        "symptom_research_result": {{ "summary": null }}
+    }}
+    ```
+
+    ## Example 2: Tool Use (Urdu/English)
+    **User:** "Mujhe ajeeb se chakkar aa rahe hain drug lene ke baad." (I am feeling dizzy after taking drug).
+    **Nora Action:** `<action>call_direct_query</action>`
+    **Nora Data:** `<data_extraction> {{ "shared_warnings": ["potential drug reaction"] }} ...`
+
+    **Output:**
+    ```json
+    {{
+        "response": "Main check karti hoon ke yeh dawa ka reaction toh nahi.",
+        "symptoms": [],
+        "programme_trigger": false,
+        "doctor_trigger": false,
+        "shared_facts": [],
+        "shared_warnings": ["potential drug reaction"],
+        "red_flags": [],
+        "symptom_research_result": {{ "summary": null }}
+    }}
+    ```
+
+    ## Example 3: Explicit Doctor Handoff (Urdu)
+    **User:** "Jee haan, please kisi doctor ko dikha dein." (Yes, please show to a doctor).
+    **Nora Action:** `<action>offer_doctor_search</action>` (Nora acknowledges and prepares to switch).
+    **Nora Data:** `<data_extraction> {{ "symptoms_collected": [...] }}`
+
+    **Output:**
+    ```json
+    {{
+        "response": "Theek hai, main aapko doctor dhoondne mein madad karti hoon.",
+        "symptoms": [...],
+        "programme_trigger": false,
+        "doctor_trigger": true, 
+        "shared_facts": [],
+        "shared_warnings": [],
+        "red_flags": [],
+        "symptom_research_result": {{ "summary": null }}
+    }}
+    ```
+    *(Note: `doctor_trigger` is true because User said "Jee haan" explicitly).*
+
+    ## Example 4: Programme/Financial Handoff (English)
+    **User:** "I really need help but I don't have any money for a private clinic."
+    **Nora Action:** `<action>offer_doctor_search</action>`
+
+    **Output:**
+    ```json
+    {{
+        "response": "I understand your financial concern...",
+        "symptoms": [],
+        "programme_trigger": true,
+        "doctor_trigger": false,
+        "shared_facts": [],
+        "shared_warnings": [],
+        "red_flags": [],
+        "symptom_research_result": {{ "summary": null }}
+    }}
+    ```
+    *(Note: `programme_trigger` is true due to "don't have any money").*
+    
+    ## Example 5: Research Result Parsing
+    **User:** (Silent - processing)
+    **Nora Response:** `<symptom_research_result>Symptoms align with Gastritis.</symptom_research_result>`
+    
+    **Output:**
+    ```json
+    {{
+        "response": "...",
+        "symptoms": [],
+        "programme_trigger": false,
+        "doctor_trigger": false,
+        "shared_facts": [],
+        "shared_warnings": [],
+        "red_flags": [],
+        "symptom_research_result": {{ "summary": "Symptoms align with Gastritis." }}
+    }}
+    ```
+    """
 
         try:
             struct_system_message = [HumanMessage(content=structured_prompt)] 
@@ -183,7 +281,7 @@ class SymptomAgentNode(Node):
             return delta
 
         if isinstance(response, BaseModel):
-                parsed = response.dict()
+            parsed = response.dict()
         elif isinstance(response, dict):
             parsed = response
         else:
@@ -193,8 +291,13 @@ class SymptomAgentNode(Node):
         new_symptoms = parsed.get("symptoms") or []
         programme_trigger = parsed.get("programme_trigger", False)
         doctor_trigger = parsed.get("doctor_trigger", False)
+        shared_facts = parsed.get("shared_facts", [])
+        shared_warnings = parsed.get("shared_warnings", [])
+        red_flags = parsed.get("red_flags", [])
+        symptom_research_result = parsed.get("symptom_research_result", {})
+        
 
-        logger.info(f"SYMPTOM TRIGGERS-----------\: \nPROGRAM: {programme_trigger}\nDOCTOR: {doctor_trigger}")
+        logger.info(f"SYMPTOM TRIGGERS-----------: \nPROGRAM: {programme_trigger}\nDOCTOR: {doctor_trigger}")
 
         if programme_trigger == True or programme_trigger == "True":
             delta["current_agent"] = "programme_eligibility_agent"
@@ -203,7 +306,10 @@ class SymptomAgentNode(Node):
         if doctor_trigger == True or doctor_trigger == "True":
             delta["current_agent"] = "doctor_agent"
         
- 
+        delta["shared_facts"] = shared_facts
+        delta["shared_warnings"] = shared_warnings
+        delta["red_flags"] = red_flags
+        delta["symptom_research_result"] = symptom_research_result
         delta["symptoms_collected"] = new_symptoms
         delta["messages"] = [tool_llm_response]
         delta["user_messages"] = [

@@ -38,9 +38,8 @@ class DoctorAgentNode(Node):
         super().__init__(name=name, temperature=temperature)
        
         self.ALLOWED_TOOLS = [
-            "Doctor_KB_Smart_Query",
-            "Doctor_KB_Direct_Query"
-        ] 
+            "Doctor_KB_Smart_Query"
+        ]
 
     async def run(self, state: MedicalAgentState):
         """Main node execution"""
@@ -70,13 +69,10 @@ class DoctorAgentNode(Node):
         try:
             # Prepare Messages
             messages = list(state["messages"])
-            logger.info("Succesfully Got messages")
             system_prompt = doctor_finder_agent_prompt(state)
-            logger.info("Succesfully Got system prompt")
             system_message = SystemMessage(content=system_prompt)
-            logger.info("Succesfully Got system prompt")
             messages = [system_message] + messages
-            logger.info("Successfully Created messages v2 Prompts") 
+            logger.info("Successfully Created messages Prompts")
         except Exception as e:
             logger.error(f"Error in Creating System Prompt and Conversation History: {e}")
             messages = ""
@@ -108,6 +104,7 @@ class DoctorAgentNode(Node):
            - Examples: "recommend me a doctor", "I'm in Multan", "yes, I want to see a doctor"
 
         2. **call_trigger = True** ONLY when:
+           - Check the <call_trigger> in the Assistant Response for whether it is True or False
            - The user EXPLICITLY agrees to call or meet a specific doctor
            - The user confirms they want to proceed with contacting a doctor
            - Examples: "yes, call them", "I agree to meet Dr. Smith", "please schedule an appointment"
@@ -157,7 +154,7 @@ class DoctorAgentNode(Node):
             return delta
 
         if isinstance(response, BaseModel):
-                parsed = response.dict()
+            parsed = response.dict()
         elif isinstance(response, dict):
             parsed = response
         else:
@@ -167,8 +164,9 @@ class DoctorAgentNode(Node):
         symptom_trigger = parsed.get("symptom_trigger", False)
         programme_trigger = parsed.get("programme_trigger", False)
         doctor_collected = parsed.get("doctor") or []
-        
-        logger.info(f"SYMPTOM TRIGGERS-----------\: \nPROGRAM: {programme_trigger}\nSYMPTOM: {symptom_trigger}")
+        call_trigger = parsed.get("call_trigger", False)
+
+        logger.info(f"SYMPTOM TRIGGERS-----------: \nPROGRAM: {programme_trigger}\nSYMPTOM: {symptom_trigger}")
 
         if symptom_trigger == True or symptom_trigger == "True":
             delta["current_agent"] = "symptom_agent"
@@ -181,8 +179,9 @@ class DoctorAgentNode(Node):
             delta["doctor_collected"] = doctor_collected
         else:
             delta["required_specialty"] = None
-            delta["doctor_collected"] = []        
+            delta["doctor_collected"] = []
         
+        delta["call_trigger"] = call_trigger
         delta["messages"] = [tool_llm_response]
         delta["user_messages"] = [
             AIMessage(

@@ -34,8 +34,9 @@ class ProgrammeEligibilityNode(Node):
        
         self.ALLOWED_TOOLS = [
             "Programme_Eligibility_KB_Direct_Query",
-            "Programme_Eligibility_KB_Smart_Query"
-        ]        
+            "Programme_Eligibility_KB_Smart_Query",
+            "Find_Nearest_Medical_Facility"
+        ]
     
     @traceable
     async def run(self, state: MedicalAgentState):

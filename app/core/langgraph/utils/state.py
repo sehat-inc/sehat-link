@@ -3,87 +3,83 @@ from typing_extensions import TypedDict
 from langchain_core.messages import BaseMessage, AnyMessage
 import operator
 
-from core.langgraph.utils.tool_manager import MCPToolManager
-
-def _normalize_val(v):
-    """Treat empty strings and 'none' strings as missing."""
-    if v is None:
-        return None
-    if isinstance(v, str):
-        s = v.strip()
-        if s == "" or s.lower() == "none":
-            return None
-        return s
-    return v
 
 
 def merge_symptoms(
-    existing: Iterable[Dict[str, Union[str, None]]],
-    incoming: Iterable[Dict[str, Union[str, None]]],
-    *,
-    prefer_new: bool = False
-) -> List[Dict[str, Union[str, None]]]:
+    existing: List[Dict[str, Any]], 
+    incoming: List[Dict[str, Any]]
+) -> List[Dict[str, Any]]:
     """
-    Merge two lists of symptom dicts (plain dicts), dedupe by 'symptom' (case-insensitive).
-    - existing, incoming: iterables of dicts like {"symptom": "acne", "duration": ..., "location": ..., "additional_details": ...}
-    - prefer_new: if True, when both existing and incoming have a non-empty value for the same field,
-                 prefer the incoming value. Default False: keep existing value.
-    Returns a list of merged dicts preserving the first-seen order of symptoms (existing first, then new ones).
+    Reducer for LangGraph state.
+    - Input: Lists of plain dictionaries (because response.dict() was called).
+    - Logic: Deduplicates by symptom name. Updates specific fields. Appends details.
     """
     merged_map = {}
     order = []
 
-    def upsert(source, is_incoming=False):
+    def upsert(source):
+        if not source: 
+            return
+        
+        # 1. Safe access (Handles if source is dict)
         sym_raw = source.get("symptom")
         if not sym_raw:
             return
+            
         key = str(sym_raw).strip().lower()
-        if key == "":
+        if not key or key == "none":
             return
 
-        # normalize fields
+        # 2. Normalize values
+        sev = _normalize_val(source.get("severity"))
         dur = _normalize_val(source.get("duration"))
         loc = _normalize_val(source.get("location"))
         add = _normalize_val(source.get("additional_details"))
 
         if key not in merged_map:
-            # Keep symptom as originally cased from source (prefer existing if present)
+            # New Entry
             merged_map[key] = {
-                "symptom": source.get("symptom"),
+                "symptom": source.get("symptom"), # Keep original casing
+                "severity": sev,
                 "duration": dur,
                 "location": loc,
                 "additional_details": add,
             }
             order.append(key)
-            return
+        else:
+            # Existing Entry - Smart Merge
+            cur = merged_map[key]
+            
+            # For Scalar values (Severity, Duration, Location):
+            # Overwrite if the new value is present (Patient update)
+            if sev: cur["severity"] = sev
+            if dur: cur["duration"] = dur
+            if loc: cur["location"] = loc
+            
+            # For Details: Concatenate to preserve history
+            if add:
+                if cur["additional_details"] and add.lower() not in cur["additional_details"].lower():
+                    cur["additional_details"] = f"{cur['additional_details']}; {add}"
+                elif not cur["additional_details"]:
+                    cur["additional_details"] = add
 
-        cur = merged_map[key]
-
-        # helper to decide whether to write incoming value
-        def choose(field_cur, field_new):
-            if field_new is None:
-                return field_cur
-            if field_cur is None:
-                return field_new
-            return field_new if prefer_new and is_incoming else field_cur
-
-        # apply merges
-        cur["duration"] = choose(cur.get("duration"), dur)
-        cur["location"] = choose(cur.get("location"), loc)
-        cur["additional_details"] = choose(cur.get("additional_details"), add)
-
-    # insert existing first (preserve their casing for 'symptom')
+    # Process existing state first
     for e in existing or []:
-        if isinstance(e, dict):
-            upsert(e, is_incoming=False)
+        upsert(e)
 
-    # then merge incoming
+    # Process new incoming data
     for inc in incoming or []:
-        if isinstance(inc, dict):
-            upsert(inc, is_incoming=True)
+        upsert(inc)
 
-    # produce ordered list
     return [merged_map[k] for k in order]
+
+def _normalize_val(v):
+    """Helper to clean empty strings."""
+    if v is None: return None
+    if isinstance(v, str):
+        s = v.strip()
+        return None if s == "" or s.lower() == "none" else s
+    return v
 
 
 class MedicalAgentState(TypedDict):
@@ -129,7 +125,7 @@ class MedicalAgentState(TypedDict):
     symptom_route: str
 
     # MCP Tool Results
-    symptom_research_result: Optional[Dict]  # From MCP deep research tool
+    symptom_research_result: Optional[str]  # From MCP deep research tool
     
     # Program
     program_trigger: bool
@@ -139,6 +135,7 @@ class MedicalAgentState(TypedDict):
     # Doctor
     required_specialty: Optional[str]
     doctor_collected: Annotated[list, operator.add]
+    call_trigger: bool
 
     # Agent Coordination
     current_agent: str
@@ -153,7 +150,7 @@ class MedicalAgentState(TypedDict):
     # Shared Knowledge
     shared_facts: Annotated[list, operator.add]
     shared_warnings: Annotated[list, operator.add]
-    red_flags: Annotated[list, operator.add]  # Medical red flags detected
+    red_flags: Annotated[list, operator.add]
 
     # prescription
     prescription_data: Optional[Dict[str, Any]]

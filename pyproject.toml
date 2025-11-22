@@ -45,4 +45,5 @@ dependencies = [
     "ollama>=0.6.1",
     "langsmith>=0.4.42",
     "httpx>=0.28.1",
+    "googlemaps>=4.10.0",
 ]
