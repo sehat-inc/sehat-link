@@ -1,52 +1,43 @@
 from typing import Dict, Any, Optional, Union, AsyncGenerator, List
-from langchain.agents import create_agent
-from langchain_core import messages
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
-import json
 from langchain_mcp_adapters.client import MultiServerMCPClient
-
+from langsmith import traceable
 from pydantic import BaseModel, Field
 
-from langchain.tools import ToolRuntime
 from core.langgraph.utils.base_node import Node
 from core.langgraph.utils.state import MedicalAgentState
-from core.langgraph.utils.helper import safe_str
-from core.prompts.mcp_client_prompts import symptom_agent_prompt
+from core.prompts.mcp_client_prompts import program_eligibility_agent_prompt
 from core.langgraph.utils.tool_manager import MCPToolManager
 from core.logging import get_logger
-from core.langgraph.utils.helper import (
-    safe_str
-)
 
 
-logger = get_logger("SYMPTOM AGENT")
+logger = get_logger("PROGRAM AGENT")
 
 
-class Symptom(BaseModel):
-    symptom: Optional[str] = Field(description="The name of the symptom")
-    duration: Optional[str] = Field(description="The duration of how long the symptom have occured")
-    location: Optional[str] = Field(description="Where the patient is feeling the symptom")
-    additional_details: Optional[str] = Field(description="Any additional details about the symptom")
-    
-
-class SymptomAgentFeedback(BaseModel):
+class ProgramFeedbackAgent(BaseModel):
     response: str = Field(description="The calm and empathetic response to the user's query")
-    symptoms: Optional[List[Symptom]]
-    programme_trigger: bool = Field(description="True if handoff to Programme agent should occur else false")
+    baitul_maal_program_eligibility: str = Field(description="Based on the users response to whether he is eligible for Pakistan Bait Ul Maal Program. True | False | Not Mentioned")
+    sehat_sahulat_program_eligibility: str = Field(description="Based on the users response to whether he is eligible for Sehat Sahulat Program. True | False | Not Mentioned")
+    symptom_trigger: bool = Field(description="True if handoff to Symptoms agent should occur else false")
+    doctor_trigger: bool = Field(description="True if handoff to Doctor agent should occur else false")
 
-class SymptomAgentNode(Node):
+class ProgrammeEligibilityNode(Node):
     """
-    Main Symptom Agent that will record and summaarize symptoms as well as
+    Main Programme Agent that will record and summaarize findings of medical health programs and doctors as well as
     choose whether to call MCP Deep Research tool
 
     """
     def __init__(self,
-                 name: str = "symptom_agent", 
-                 temperature: float = 0.7): 
+                 name: str = "program_agent",
+                 temperature: float = 0.7):
         super().__init__(name=name, temperature=temperature)
        
-        
-
+        self.ALLOWED_TOOLS = [
+            "Programme_Eligibility_KB_Direct_Query",
+            "Programme_Eligibility_KB_Smart_Query"
+        ]        
+    
+    @traceable
     async def run(self, state: MedicalAgentState):
         """Main node execution"""
         
@@ -61,18 +52,37 @@ class SymptomAgentNode(Node):
         delta = {}
 
         tools = await client.get_tools()
-        model_with_tools = self.llm.bind_tools(tools)
 
-        # Prepare Messages
-        messages = list(state["messages"])
-        system_prompt = symptom_agent_prompt(state)
-        system_message = SystemMessage(
-            content=system_prompt
-        )
-        messages = [system_message] + messages
+        filtered_tools = [
+            tool for tool in tools
+            if tool.name in self.ALLOWED_TOOLS
+        ]
 
-        tool_llm_response = await model_with_tools.ainvoke(messages)
+        logger.info(f"Allowed Tools for Programme: {[t.name for t in filtered_tools]}")
+
+
+        model_with_tools = self.llm.bind_tools(filtered_tools)
         
+        try:
+            # Prepare Messages
+            messages = list(state["messages"])
+            logger.info("Succesfully Got messages")
+            system_prompt = program_eligibility_agent_prompt(state)
+            logger.info("Succesfully Got system prompt")
+            system_message = SystemMessage(content=system_prompt)
+            logger.info("Succesfully Got system prompt")
+            messages = [system_message] + messages
+            logger.info("Successfully Created messages v2 Prompts") 
+        except Exception as e:
+            logger.error(f"Error in Creating System Prompt and Conversation History: {e}")
+            messages = ""
+        
+        try:
+            tool_llm_response = await model_with_tools.ainvoke(messages)
+        except Exception as e:
+            logger.error(f"Failed in Getting LLM TOOL Response: {e}")
+            tool_llm_response = "Due to technical issues could you please repeat that..."
+
         last_user_msg = messages[-1].content if messages else ""
         
         structured_prompt = f"""
@@ -80,25 +90,21 @@ class SymptomAgentNode(Node):
         format. You are also tasked with figuring out the routing as structured output
         determined by the conversation given.
         RULES:
-            - Set `"programme_trigger": true` ONLY if the user mentions healthcare programmes, insurance, or eligibility.
+            - Set `"symptom_trigger": true` ONLY if the user mentions about his symptoms ONLY or if he explicitly asks for help about his health and requires medical knowledge.
 
         USER RESPONSE: {last_user_msg}
         ASSISTANT RESPONSE: {tool_llm_response}
         "response": "The response given the LLM lastly" 
-        "programme_trigger": true | false
-        {{
-            "symptom": "headache",
-            "severity": "moderate",
-            "duration": "3 days",
-            "location": "temples",
-            "additional_details": "worse in morning"
-        }}
+        "symptom_trigger": true | false
+        "sehat_sahulat_program_eligibility": true | false | not mentioned - Based on if User Explicitly states he is Eligible or not for Sehat Sahulat Program
+        "baitul_maal_program_eligibility": true | false | not mentioned - Based on if User Explicitly states he is Eligible or not for Pakistan Bait Ul Maal Program
+
         """
 
         try:
             struct_system_message = [SystemMessage(content=structured_prompt)] + list(state["messages"])
             structured_llm = self.llm.with_structured_output(
-                schema=SymptomAgentFeedback
+                schema=ProgramFeedbackAgent
             )
 
             response = await structured_llm.ainvoke(struct_system_message)
@@ -116,16 +122,21 @@ class SymptomAgentNode(Node):
             parsed = response
         else:
             raise ValueError(f"Unexpected response type: {type(response)} | {response}")
-
-        response_text = parsed.get("response", "")
-        new_symptoms = parsed.get("symptoms") or []
-        programme_trigger = parsed.get("programme_trigger", False)
-
-        if programme_trigger == True or programme_trigger == "True":
-            delta["current_agent"] = "programme_eligibility_agent"
-    
         
-        delta["symptoms_collected"] = new_symptoms
+        response_text = parsed.get("response", "")
+        symptom_trigger = parsed.get("symptom_trigger", False)
+        doctor_trigger = parsed.get("doctor_trigger", False)
+        sehat_sahulat_program_eligibility = parsed.get("sehat_sahulat_program_eligibility", "True")
+        baitul_maal_program_eligibility = parsed.get("baitul_maal_program_eligibility", "True")
+        
+        if symptom_trigger == True or symptom_trigger == "True":
+            delta["current_agent"] = "symptom_agent"
+    
+        if doctor_trigger == True or doctor_trigger == "True":
+            delta["current_agent"] = "doctor_agent"
+        
+        delta["sehat_sahulat_program_eligibility"] = sehat_sahulat_program_eligibility
+        delta["baitul_maal_program_eligibility"] = baitul_maal_program_eligibility
         delta["messages"] = [tool_llm_response]
         delta["user_messages"] = [
             AIMessage(

@@ -1,10 +1,14 @@
 import json
 from typing import Dict, Any
-from langchain_core.messages import AIMessage, BaseMessage
+from langchain_core.messages import AIMessage
 
 from core.langgraph.utils.base_node import Node
 from core.langgraph.utils.state import MedicalAgentState
 from core.langgraph.utils.helper import safe_str
+from core.logging import get_logger
+
+logger = get_logger("PRESCRIPTION AGENT")
+
 
 class PrescriptionAgent(Node):
     """
@@ -15,31 +19,25 @@ class PrescriptionAgent(Node):
     def __init__(self, name: str = "prescription_agent", temperature: float = 0.0):
         super().__init__(name=name, temperature=temperature)
 
-    async def __call__(self, state: MedicalAgentState) -> Dict[str, Any]:
+    async def run(self, state: MedicalAgentState) -> Dict[str, Any]:
         msgs = state.get("messages", [])
         if not msgs:
             return {}
 
-        last_msg: BaseMessage = msgs[-1]
-
-        # ------------------------------
-        # 1. Detect if image is present
-        # ------------------------------
-        # In the PrescriptionAgent.__call__ method, replace the image detection logic with:
-        image_data = None
-        if hasattr(last_msg, "content") and isinstance(last_msg.content, list):
-            for item in last_msg.content:
-                if isinstance(item, dict) and item.get("type") == "image_url":
-                    image_data = item.get("image_url")
-                    break
+        image_data = None 
+        for msg in reversed(msgs):
+            if msg.__class__.__name__ == "HumanMessage":
+                if hasattr(msg, "content") and isinstance(msg.content, list):
+                    logger.info(f"PRESCRIPTION MESSAGE BEING SEEN: {msg}")
+                    for item in msg.content:
+                        if isinstance(item, dict) and item.get("type") == "image_url":
+                            image_data = item.get("image_url")
+                            break
         
 
         if not image_data:
             return {}   # No image → do nothing
 
-        # ------------------------------
-        # 2. Build Vision prompt
-        # ------------------------------
         system_prompt = """
         You are a clinical prescription OCR expert.
         Extract ONLY the medications list in this exact JSON shape:
@@ -54,14 +52,7 @@ class PrescriptionAgent(Node):
         Return JSON only.
         """
 
-        user_prompt = {
-            "image": image_data,
-            "text": "Extract medications."
-        }
 
-        # ------------------------------
-        # 3. Call Gemini Vision Model
-        # ------------------------------
         try:
             # Replace the LLM call section with:
             raw_resp = await self.llm.ainvoke([
@@ -73,14 +64,11 @@ class PrescriptionAgent(Node):
         ])
             llm_output = safe_str(raw_resp.content)
         except Exception as e:
+            logger.error(f"Prescription Agent Error: {e}")
             return {
-                "messages": [AIMessage(content=f"PrescriptionAgent error: {e}")],
-                "current_agent": "frontend"
+                "messages": [AIMessage(content=f"No medications found")],
             }
 
-        # ------------------------------
-        # 4. Clean & extract JSON safely
-        # ------------------------------
         json_str = llm_output.strip()
 
         # Remove markdown fences
@@ -106,20 +94,9 @@ class PrescriptionAgent(Node):
                 # fall back silently
                 pass
 
-        # ------------------------------
-        # 5. Prepare delta update
-        # ------------------------------
         delta: Dict[str, Any] = {}
 
         # Write final cleaned prescription result
         delta["prescription_data"] = parsed
-
-        # Tell the rest of the system that we processed the prescription
-        delta["messages"] = [
-            AIMessage(content="Prescription processed successfully.")
-        ]
-
-        # Hand control back (you can choose a different next agent)
-        delta["current_agent"] = "frontend"
 
         return delta
