@@ -203,7 +203,7 @@ def build_triage_agent():
 
 
     graph.add_conditional_edges(
-        START, 
+        START,
         start_router,
         {
             "triage": "triage",

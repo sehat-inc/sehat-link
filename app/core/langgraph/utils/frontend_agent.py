@@ -70,7 +70,7 @@ class TriageAgent(Node):
         
 
         # Prepare Messages
-        messages = list(state["user_messages"])
+        messages = list(state["messages"])
         system_prompt = frontend_agent_prompt(state)
         if len(messages) == 1 and isinstance(messages[0], HumanMessage):
             system_message = SystemMessage(content=system_prompt)
@@ -78,9 +78,9 @@ class TriageAgent(Node):
         else:
             init_messages = [SystemMessage(content=system_prompt)] + messages
 
-        response = await model_with_tools.ainvoke(init_messages)
+        llm_response = await model_with_tools.ainvoke(init_messages)
     
-        logger.info(f"First LLM: {response}")
+        logger.info(f"First LLM: {llm_response}")
 
         # Last User Message 
         last_user_msg = messages[-1].content if messages else ""
@@ -92,7 +92,7 @@ class TriageAgent(Node):
 
         # INPUT DATA
         **USER'S LAST MESSAGE:** "{last_user_msg}"
-        **ASSISTANT'S RAW RESPONSE:** "{response}"
+        **ASSISTANT'S RAW RESPONSE:** "{llm_response}"
 
         # 1. RESPONSE EXTRACTION RULE
         - Extract the **clean conversational text** spoken by the assistant.
@@ -198,16 +198,19 @@ class TriageAgent(Node):
             return delta
         
         delta["current_agent"] = "triage_agent"
-        delta["messages"] = [
-            AIMessage(
-                content=response_text
-            )
-        ]
-        delta["user_messages"] = [
-            AIMessage(
-                content=response_text
-            )
-        ]
+        
 
+        has_tool_calls = hasattr(llm_response, 'tool_calls') and len(llm_response.tool_calls)
+
+        if has_tool_calls:
+            delta["messages"] = [llm_response]
+            delta["user_messages"] = [llm_response]
+        else:
+            delta["messages"] = [llm_response]
+            delta["user_messages"] = [
+                AIMessage(
+                    content=response_text
+                )
+            ]
         
         return delta

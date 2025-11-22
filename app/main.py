@@ -15,6 +15,7 @@ from langgraph.checkpoint.redis.aio import AsyncRedisSaver
 from contextlib import asynccontextmanager
 import os
 import uuid
+from redis.asyncio import Redis
 
 from routers import  doctor, follow_up, hospital, logout, patient, appointment, degraded
 
@@ -32,6 +33,28 @@ logger = get_logger("MAIN APP LOGIC")
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379")
 logger.info(f"REDIS_URL: {REDIS_URL}")
 
+checkpointer = None
+
+# --- 3. LIFESPAN MANAGEMENT (FIXED) ---
+@asynccontextmanager
+async def combined_lifespan(app: FastAPI):
+    """
+    Handles startup/shutdown for both Redis and MCP.
+    We nest the Context Managers to keep them both alive.
+    """
+    async with AsyncRedisSaver.from_conn_string(REDIS_URL) as cp:
+        await cp.asetup()
+        
+        global checkpointer
+        checkpointer = cp
+        logger.info("Redis Checkpointer Initialized and Global Set")
+
+        async with mcp_app.lifespan(app) as mcp_ctx:
+            yield
+        
+        logger.info("Redis Connection Closed")
+        checkpointer = None
+
 
 app = FastAPI()
 
@@ -48,7 +71,8 @@ app.include_router(logout.router)
 app.include_router(appointment.router)
 app.include_router(degraded.router)  # Degraded mode - no auth required
 
-# Helper to run graph with proper state management
+
+
 async def run_graph_for_user(builder, user_id: int, user_message: str):
     """
     Helper func for running the graph and returing the result
@@ -58,43 +82,43 @@ async def run_graph_for_user(builder, user_id: int, user_message: str):
             "thread_id": f"user_{user_id}"
         }
     }
+    
+    graph = builder.compile(checkpointer=checkpointer)
+    
+    # NOTE: DO NOT USE THIS IN PRODUCTION
+    png_bytes = graph.get_graph(xray=True).draw_mermaid_png()
+    with open("graph.png", "wb") as f:
+        f.write(png_bytes)
 
-    async with AsyncRedisSaver.from_conn_string(REDIS_URL) as checkpointer:
-        await checkpointer.asetup()
-        graph = builder.compile(checkpointer=checkpointer)
-        png_bytes = graph.get_graph(xray=True).draw_mermaid_png()
-        with open("graph.png", "wb") as f:
-            f.write(png_bytes)
-        try:
+    try:
+        current_state = await graph.aget_state(config)
+        logger.info(f"Current State: {current_state}")
+    except Exception as e:
+        logger.error(f"Error in Getting Current State: {e}")
+        return
 
-            current_state = await graph.aget_state(config)
-            logger.info(f"Current State: {current_state}")
-        except Exception as e:
-            logger.error(f"Error in Getting Current State: {e}")
-            return
+    try:
+        if current_state and current_state.values:
+            state_values = current_state.values
+            logger.info("Getting Values from current state")
+        else:
+            logger.info("Getting State from DB")
+            state_values = await load_initial_state_from_db(user_id)
+    except Exception as e:
+        logger.error(f"Error in Getting Graph State: {e}")
+        return
+    
+    updated_state = {
+        **state_values,
+        "user_messages": [HumanMessage(content=user_message)],
+        "messages":[HumanMessage(content=user_message)]
+    }
+    
+    logger.info(f"UPDATED STATE: {updated_state}")
 
-        try:
-            if current_state and current_state.values:
-                state_values = current_state.values
-                logger.info("Getting Values from current state")
-            else:
-                logger.info("Getting State from DB")
-                state_values = await load_initial_state_from_db(user_id)
-        except Exception as e:
-            logger.error(f"Error in Getting Graph State: {e}")
-            return
-        
-        updated_state = {
-            **state_values,
-            "user_messages": [HumanMessage(content=user_message)],
-            "messages":[HumanMessage(content=user_message)]
-        }
-        
-        logger.info(f"UPDATED STATE: {updated_state}")
+    result = await graph.ainvoke(updated_state, config=config)
 
-        result = await graph.ainvoke(updated_state, config=config)
-
-        return result
+    return result
 
 @app.websocket("/ws/chat")
 async def chat_socket(socket: WebSocket):
@@ -190,7 +214,7 @@ combined_app = FastAPI(
         *mcp_app.routes,
         *app.routes,
     ],
-    lifespan=mcp_app.lifespan,
+    lifespan=combined_lifespan,
 )
 
 
