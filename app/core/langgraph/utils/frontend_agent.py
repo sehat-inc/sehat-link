@@ -37,8 +37,7 @@ class TriageAgent(Node):
         super().__init__(name=name, temperature=temperature)
     
         self.ALLOWED_TOOLS = [
-            "Programme_Eligibility_KB_Direct_Query",
-            "Programme_Eligibility_KB_Smart_Query",
+            "Baba_Qadeer_Tool"
         ]
 
 
@@ -71,7 +70,7 @@ class TriageAgent(Node):
         
 
         # Prepare Messages
-        messages = list(state["user_messages"])
+        messages = list(state["messages"])
         system_prompt = frontend_agent_prompt(state)
         if len(messages) == 1 and isinstance(messages[0], HumanMessage):
             system_message = SystemMessage(content=system_prompt)
@@ -79,39 +78,88 @@ class TriageAgent(Node):
         else:
             init_messages = [SystemMessage(content=system_prompt)] + messages
 
-        response = await model_with_tools.ainvoke(init_messages)
+        llm_response = await model_with_tools.ainvoke(init_messages)
     
-        logger.info(f"First LLM: {response}")
+        logger.info(f"First LLM: {llm_response}")
 
         # Last User Message 
         last_user_msg = messages[-1].content if messages else ""
         
-        routing_prompt=f"""
-        You are responsible for analyzing the conversation and determining the routing as well 
-        as structured output by parsing the main content of the information.
-        Rules:
-        - Set `"symptom_trigger": true` ONLY if the user mentions symptoms or a health concern.
-        - Set `"programme_trigger": true` ONLY if the user mentions healthcare programmes, insurance, or eligibility.
-        - Set `"doctor_trigger": true` ONLY if the user mentions he needs to find doctors or needs help finding relevant doctors.
-        - If both are irrelevant → both should be false.
-        - **You must NEVER set both to true at the same time.**
+        routing_prompt = f"""
+        # ROLE: Backend Logic Parser & Router
+        You are the **Navigation Controller** for the Sehat Link system. 
+        Your job is to analyze the interaction between the **User** and **Ms Sehat** (Receptionist) to extract the clean response and determine the immediate routing destination.
 
-        USER LAST MESSAGE: {last_user_msg}
+        # INPUT DATA
+        **USER'S LAST MESSAGE:** "{last_user_msg}"
+        **ASSISTANT'S RAW RESPONSE:** "{llm_response}"
 
-        ASSISTANT RESPONSE: {response}
+        # 1. RESPONSE EXTRACTION RULE
+        - Extract the **clean conversational text** spoken by the assistant.
+        - **REMOVE** any XML tags (like `<router>`, `<response>`), JSON blocks, or internal thought processes.
+        - If the Assistant's response was empty (because it was just routing), return an empty string "".
 
-        We need the output in the following format:
+        # 2. ROUTING LOGIC (Strict Hierarchy)
+        Analyze the **User's Last Message** to determine the trigger. Only **ONE** trigger can be True.
+
+        ### A. symptom_trigger (Priority: High)
+        - **Set TRUE if:**
+            - User describes **physical symptoms, pain, or distress**.
+            - User asks for a **medical opinion** ("Is this dangerous?", "What is this?").
+            - *Examples:* "Mera sar dard hai", "I have fever", "Feeling dizzy", "chest pain".
+        - **Set FALSE if:**
+            - User mentions a condition ONLY to find a location (e.g., "I have fever, where is the hospital?" -> This is a Facility Search).
+
+        ### B. programme_trigger (Priority: Medium)
+        - **Set TRUE if:**
+            - **FACILITY SEARCH:** User asks to find/locate a **hospital, clinic, pharmacy, lab, or Basic Health Unit**.
+            - **PROGRAMS:** User asks about **Sehat Sahulat Card, Bait-ul-Maal, Govt schemes, or eligibility**.
+            - **FINANCIAL:** User mentions **affordability/money** ("I can't afford this", "Free treatment").
+            - *Examples:* "Where is the nearest hospital?", "Find pharmacy", "Sehat card check", "Cheap clinic".
+
+        ### C. doctor_trigger (Priority: Low)
+        - **Set TRUE if:**
+            - User explicitly asks to **book an appointment** with a specific doctor.
+            - User asks to **connect/speak to a human doctor** (Tele-health).
+            - *Examples:* "Book appointment with Dr. Ali", "Connect me to a real person", "Schedule visit".
+        - **Set FALSE if:**
+            - User is just browsing for lists of doctors (Route to Programme/Facility agent instead).
+
+        # 3. OUTPUT FORMAT (JSON)
+        Return a valid JSON object:
 
         {{
-            "response": The response given by the assistant. Make sure the main text as is.
-            "symptom_trigger": true | false
-            "programme_trigger": true | false
+            "response": "Clean text of assistant response (or empty string)",
+            "symptom_trigger": true | false,
+            "programme_trigger": true | false,
             "doctor_trigger": true | false
         }}
 
-        You do NOT need to mention routing or state changes to the user — just produce the correct structured output.
-        """
+        # FEW-SHOT REASONING (For Accuracy)
 
+        **Ex 1: Facility Lookup (Goes to Programme Agent)**
+        *User:* "Qareebi hospital kahan hai?"
+        *Reasoning:* User wants a facility location.
+        *Result:* {{"symptom_trigger": false, "programme_trigger": true, "doctor_trigger": false}}
+
+        **Ex 2: Symptom Complaint (Goes to Symptom Agent)**
+        *User:* "Mujhay subah se ulti aa rahi hai." (Vomiting since morning)
+        *Reasoning:* User is describing a medical condition.
+        *Result:* {{"symptom_trigger": true, "programme_trigger": false, "doctor_trigger": false}}
+
+        **Ex 3: Booking Request (Goes to Doctor Agent)**
+        *User:* "Please book a slot with Dr. Ayesha."
+        *Reasoning:* Explicit booking intent.
+        *Result:* {{"symptom_trigger": false, "programme_trigger": false, "doctor_trigger": true}}
+
+        **Ex 4: Financial/Govt Help (Goes to Programme Agent)**
+        *User:* "I am poor, do you have free service?"
+        *Reasoning:* Financial aid query.
+        *Result:* {{"symptom_trigger": false, "programme_trigger": true, "doctor_trigger": false}}
+
+        Parse the input now.
+        """
+        
         try:
             structured_llm = self.llm.with_structured_output(
                 schema=FrontendFeedback.model_json_schema(), method="json_schema"
@@ -134,32 +182,35 @@ class TriageAgent(Node):
 
         response_text = response["response"]
         
-        if symptom_trigger == True or symptom_trigger == "True":
+        if symptom_trigger == True: 
             delta["current_agent"] = "symptom_agent"
             
             return delta
 
-        if programme_trigger == True or programme_trigger == "True":
+        if programme_trigger == True:
             delta["current_agent"] = "programme_eligibility_agent"
             
             return delta
         
-        if doctor_trigger == True or doctor_trigger == "True":
+        if doctor_trigger == True: 
             delta["current_agent"] = "doctor_agent"
         
             return delta
         
         delta["current_agent"] = "triage_agent"
-        delta["messages"] = [
-            AIMessage(
-                content=response_text
-            )
-        ]
-        delta["user_messages"] = [
-            AIMessage(
-                content=response_text
-            )
-        ]
+        
 
+        has_tool_calls = hasattr(llm_response, 'tool_calls') and len(llm_response.tool_calls)
+
+        if has_tool_calls:
+            delta["messages"] = [llm_response]
+            delta["user_messages"] = [llm_response]
+        else:
+            delta["messages"] = [llm_response]
+            delta["user_messages"] = [
+                AIMessage(
+                    content=response_text
+                )
+            ]
         
         return delta

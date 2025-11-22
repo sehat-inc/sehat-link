@@ -145,7 +145,17 @@ def should_continue_doctor(state: MedicalAgentState) -> Literal["tools", "sympto
 
 
 
-def should_continue_traige(state: MedicalAgentState) -> Literal["symptom", "program", "doctor", "continue"]:
+def should_continue_traige(state: MedicalAgentState) -> Literal["tools" ,"symptom", "program", "doctor", "continue"]:
+    
+    messages = state["messages"]
+    last_message = messages[-1]
+    logger.info(f"LAST MESSAGE FROM SHOULD CONTINUE: {last_message}")
+    
+    # Check if LLM wants to call tools
+    if hasattr(last_message, "tool_calls") and last_message.tool_calls:
+        logger.info("RETURNING TOOL")
+        return "tools"
+
     if state["current_agent"] == "symptom_agent":
         return "symptom"
     if state["current_agent"] == "programme_eligibility_agent":
@@ -185,6 +195,7 @@ def build_triage_agent():
     graph.add_node("urgency", urgency.run)
     graph.add_node("doctor", doctor.run)
     graph.add_node("prescription", prescription.run)
+    graph.add_node("triage_tools", mcp_tool_node)
     graph.add_node("symptom_tools", mcp_tool_node)
     graph.add_node("program_tools", mcp_tool_node)
     graph.add_node("doctor_tools", mcp_tool_node)
@@ -192,7 +203,7 @@ def build_triage_agent():
 
 
     graph.add_conditional_edges(
-        START, 
+        START,
         start_router,
         {
             "triage": "triage",
@@ -208,6 +219,7 @@ def build_triage_agent():
         "triage",
         should_continue_traige,
         {
+            "tools" : "triage_tools",
             "symptom": "symptom",
             "program": "program",
             "doctor": "doctor",
@@ -251,6 +263,7 @@ def build_triage_agent():
     
     graph.add_edge("prescription", END)
     graph.add_edge("language", END)
+    graph.add_edge("triage_tools", "triage")
     graph.add_edge("symptom_tools", "symptom")
     graph.add_edge("program_tools", "program")
     graph.add_edge("doctor_tools", "doctor")

@@ -40,6 +40,7 @@ class SymptomAgentFeedback(BaseModel):
     shared_warnings: Optional[List[str]] = Field(default_factory=list, description="Shared warnings for other agents")
     red_flags: Optional[List[str]] = Field(default_factory=list, description="Shared Red Flags for other agents")
     symptom_research_result: Optional[str] = Field(default_factory=str, description="The Research Results/Summary given by LLM if Tool is called.")
+    disease_name: Optional[str] = Field(description="One word summary of the disease the user has or most critical symptom")
 
 class SymptomAgentNode(Node):
     """
@@ -95,176 +96,165 @@ class SymptomAgentNode(Node):
         last_user_msg = messages[-1].content if messages else ""
         
         structured_prompt = f"""
-    # ROLE: Medical Conversation Router & Data Parser
+        # ROLE: Medical Conversation Router & Data Parser
 
-    You are the system logic engine for Sehat Link. Your job is to parse the output from "Nora" (the Symptom Agent) and the User's latest message to determine the next system state.
+        You are the system logic engine for Sehat Link. Your job is to parse the output from "Nora" (the Symptom Agent) and the User's latest message to determine the next system state.
 
-    You must map the unstructured XML/Text output into a strict JSON structure matching the `SymptomAgentFeedback` schema.
+        You must map the unstructured XML/Text output into a strict JSON structure matching the `SymptomAgentFeedback` schema.
 
-    # INPUTS
-    1. **User's Last Message:** "{last_user_msg}"
-    2. **Nora's (Agent) Response:** 
-    {tool_llm_response}
+        # INPUTS
+        1. **User's Last Message:** "{last_user_msg}"
+        2. **Nora's (Agent) Response:** 
+        {tool_llm_response}
 
-    # INSTRUCTIONS
+        # INSTRUCTIONS
 
-    ## 1. Data Parsing (XML to JSON)
-    You must extract data from Nora's XML tags and map them to the output schema:
+        ## 1. Data Parsing (XML to JSON)
+        You must extract data from Nora's XML tags and map them to the output schema:
 
-    - **response**: Extract text from `<response>...</response>`.
-    - **symptoms**: Parse the JSON inside `<data_extraction>` -> `symptoms_collected`. Map fields:
-        - `name` -> `symptom`
-        - `severity` -> `severity` (if missing, put "unknown")
-        - `duration` -> `duration`
-        - `location` -> `location`
-        - `details`/`type` -> `additional_details`
-    - **shared_facts**: Extract from `<data_extraction>` -> `shared_facts`.
-    - **shared_warnings**: Extract from `<data_extraction>` -> `shared_warnings`.
-    - **red_flags**: Extract from `<data_extraction>` -> `red_flags`.
-    - **symptom_research_result**: Extract text from `<symptom_research_result>`. 
-      - **IMPORTANT:** The output schema requires this to be a **Dict**. 
-      - Format it as: `{{ "summary": "extracted text..." }}`. If empty, use `{{"summary": null}}`.
+        - **response**: Extract text from `<response>...</response>`.
+        - **symptoms**: Parse the JSON inside `<data_extraction>` -> `symptoms_collected`. Map fields:
+            - `name` -> `symptom`
+            - `severity` -> `severity` (if missing, put "unknown")
+            - `duration` -> `duration`
+            - `location` -> `location`
+            - `details`/`type` -> `additional_details`
+        - **shared_facts**: Extract from `<data_extraction>` -> `shared_facts`.
+        - **shared_warnings**: Extract from `<data_extraction>` -> `shared_warnings`.
+        - **red_flags**: Extract from `<data_extraction>` -> `red_flags`.
+        - **symptom_research_result**: Extract text from `<symptom_research_result>`. 
+          - Format it as: `{{ "summary": "extracted text..." }}`. If empty, use `{{ "summary": null }}`.
+        
+        ## 2. Disease Name Extraction (CRITICAL)
+        Extract `disease_name` based on the `symptom_research_result` or the conversation context.
+        
+        **Rules:**
+        1. **Identified Disease:** If the agent explicitly mentions a likely condition (e.g., "Symptoms align with Migraine", "Possible Dengue"), use that name (1-2 words).
+        2. **Critical Symptom:** If no specific disease is named but the user has a MAJOR/CRITICAL symptom (e.g., "Chest Pain", "Breathing Difficulty"), use that symptom as the name.
+        3. **Fallback (Default):** If symptoms are minor, unclear, or the agent is still gathering information without a hypothesis, **YOU MUST USE "No Disease"**.
+        
+        *Examples:*
+        - "Possible Malaria" -> "Malaria"
+        - "Severe crushing chest pain" -> "Chest Pain"
+        - "I have a headache" (Initial gathering) -> "No Disease"
 
-    ## 2. Routing Logic (Triggers)
-    Determine `doctor_trigger` and `programme_trigger`. 
-    **DEFAULT TO FALSE** unless specific criteria are met.
+        ## 3. Routing Logic (Triggers)
+        Determine `doctor_trigger` and `programme_trigger`. 
+        **DEFAULT TO FALSE** unless specific criteria are met.
 
-    ### A. Doctor Trigger (`doctor_trigger`)
-    **Set to TRUE only if:**
-    1. The User **EXPLICITLY** asks for a doctor/specialist in `last_user_msg` (e.g., "find me a doctor", "I need to see someone", "book appointment").
-    2. The User replies "Yes" to a previous offer to find a doctor.
-    
-    **Set to FALSE if:**
-    - Nora's `<action>` is `offer_doctor_search` BUT the user has NOT said "yes" yet. (Nora is *offering*, not confirming).
-    - Nora's `<action>` is `continue_gathering`, `call_smart_query`, or `call_direct_query`.
-    - User is still describing symptoms.
+        ### A. Doctor Trigger (`doctor_trigger`)
+        **Set to TRUE only if:**
+        1. The User **EXPLICITLY** asks for a doctor/specialist in `last_user_msg` (e.g., "find me a doctor", "I need to see someone", "book appointment").
+        2. The User replies "Yes" to a previous offer to find a doctor.
+        
+        **Set to FALSE if:**
+        - Nora's `<action>` is `offer_doctor_search` BUT the user has NOT said "yes" yet. (Nora is *offering*, not confirming).
+        - Nora's `<action>` is `continue_gathering`, `call_smart_query`, or `call_direct_query`.
+        - User is still describing symptoms.
 
-    ### B. Programme Trigger (`programme_trigger`)
-    **Set to TRUE only if:**
-    1. User mentions financial difficulty (e.g., "cannot afford", "too expensive", "no money").
-    2. User asks about government schemes, insurance, Sehat Card, or free clinics.
-    
-    **Set to FALSE otherwise.**
+        ### B. Programme Trigger (`programme_trigger`)
+        **Set to TRUE only if:**
+        1. User mentions financial difficulty (e.g., "cannot afford", "too expensive", "no money").
+        2. User asks about government schemes, insurance, Sehat Card, or free clinics.
+        
+        **Set to FALSE otherwise.**
 
-    # OUTPUT SCHEMA (JSON)
-    Target class: `SymptomAgentFeedback`
+        # OUTPUT SCHEMA (JSON)
+        Target class: `SymptomAgentFeedback`
 
-    {{
-        "response": "String",
-        "symptoms": [List of Symptom objects],
-        "programme_trigger": Boolean,
-        "doctor_trigger": Boolean,
-        "shared_facts": [List of strings],
-        "shared_warnings": [List of strings],
-        "red_flags": [List of strings],
-        "symptom_research_result": {{ "summary": "String or Null" }}
-    }}
+        {{
+            "response": "String",
+            "symptoms": [List of Symptom objects],
+            "programme_trigger": Boolean,
+            "doctor_trigger": Boolean,
+            "shared_facts": [List of strings],
+            "shared_warnings": [List of strings],
+            "red_flags": [List of strings],
+            "symptom_research_result": {{ "summary": "String or Null" }},
+            "disease_name": "String" 
+        }}
 
-    # EXAMPLES
+        # EXAMPLES
 
-    ## Example 1: Gathering Info (English)
-    **User:** "I have a throbbing headache on the left side."
-    **Nora Action:** `<action>continue_gathering</action>`
-    **Nora Data:** `<data_extraction> {{ "symptoms_collected": [name": "headache", "severity": "severe", "location": "left side"] }} ...`
+        ## Example 1: Gathering Info (No Disease Yet)
+        **User:** "I have a throbbing headache on the left side."
+        **Nora Action:** `<action>continue_gathering</action>`
+        **Nora Data:** `<data_extraction> {{ "symptoms_collected": [...] }} ...`
+        
+        **Output:**
+        ```json
+        {{
+            "response": "I understand. How long have you had this headache?",
+            "symptoms": [
+                {{ "symptom": "headache", "duration": "unknown", "location": "left side", "additional_details": "severity: severe" }}
+            ],
+            "programme_trigger": false,
+            "doctor_trigger": false,
+            "shared_facts": [],
+            "shared_warnings": [],
+            "red_flags": [],
+            "symptom_research_result": {{ "summary": null }},
+            "disease_name": "No Disease"
+        }}
+        ```
 
-    **Output:**
-    ```json
-    {{
-        "response": "I understand. How long have you had this headache?",
-        "symptoms": [
-            {{
-                "symptom": "headache", 
-                "duration": "unknown", 
-                "location": "left side", 
-                "additional_details": "severity: severe"
-            }}
-        ],
-        "programme_trigger": false,
-        "doctor_trigger": false,
-        "shared_facts": [],
-        "shared_warnings": [],
-        "red_flags": [],
-        "symptom_research_result": {{ "summary": null }}
-    }}
-    ```
+        ## Example 2: Identified Disease (Dengue)
+        **User:** "I have high fever and spots on my body."
+        **Nora Response:** `<symptom_research_result>Symptoms strongly suggest Dengue Fever.</symptom_research_result>`
 
-    ## Example 2: Tool Use (Urdu/English)
-    **User:** "Mujhe ajeeb se chakkar aa rahe hain drug lene ke baad." (I am feeling dizzy after taking drug).
-    **Nora Action:** `<action>call_direct_query</action>`
-    **Nora Data:** `<data_extraction> {{ "shared_warnings": ["potential drug reaction"] }} ...`
+        **Output:**
+        ```json
+        {{
+            "response": "These signs are concerning for Dengue...",
+            "symptoms": [{{ "symptom": "fever", "additional_details": "high" }}, {{ "symptom": "rash", "additional_details": "spots" }}],
+            "programme_trigger": false,
+            "doctor_trigger": false,
+            "shared_facts": [],
+            "shared_warnings": [],
+            "red_flags": [],
+            "symptom_research_result": {{ "summary": "Symptoms strongly suggest Dengue Fever." }},
+            "disease_name": "Dengue Fever"
+        }}
+        ```
 
-    **Output:**
-    ```json
-    {{
-        "response": "Main check karti hoon ke yeh dawa ka reaction toh nahi.",
-        "symptoms": [],
-        "programme_trigger": false,
-        "doctor_trigger": false,
-        "shared_facts": [],
-        "shared_warnings": ["potential drug reaction"],
-        "red_flags": [],
-        "symptom_research_result": {{ "summary": null }}
-    }}
-    ```
+        ## Example 3: Explicit Doctor Handoff + Critical Symptom
+        **User:** "Yes, please find a doctor. My chest pain is unbearable."
+        **Nora Action:** `<action>offer_doctor_search</action>`
 
-    ## Example 3: Explicit Doctor Handoff (Urdu)
-    **User:** "Jee haan, please kisi doctor ko dikha dein." (Yes, please show to a doctor).
-    **Nora Action:** `<action>offer_doctor_search</action>` (Nora acknowledges and prepares to switch).
-    **Nora Data:** `<data_extraction> {{ "symptoms_collected": [...] }}`
+        **Output:**
+        ```json
+        {{
+            "response": "I am finding a cardiologist immediately.",
+            "symptoms": [],
+            "programme_trigger": false,
+            "doctor_trigger": true, 
+            "shared_facts": [],
+            "shared_warnings": [],
+            "red_flags": ["Chest Pain"],
+            "symptom_research_result": {{ "summary": "Potential Cardiac Event" }},
+            "disease_name": "Chest Pain"
+        }}
+        ```
 
-    **Output:**
-    ```json
-    {{
-        "response": "Theek hai, main aapko doctor dhoondne mein madad karti hoon.",
-        "symptoms": [...],
-        "programme_trigger": false,
-        "doctor_trigger": true, 
-        "shared_facts": [],
-        "shared_warnings": [],
-        "red_flags": [],
-        "symptom_research_result": {{ "summary": null }}
-    }}
-    ```
-    *(Note: `doctor_trigger` is true because User said "Jee haan" explicitly).*
+        ## Example 4: Programme/Financial Handoff
+        **User:** "I really need help but I don't have any money."
+        **Nora Action:** `<action>offer_doctor_search</action>`
 
-    ## Example 4: Programme/Financial Handoff (English)
-    **User:** "I really need help but I don't have any money for a private clinic."
-    **Nora Action:** `<action>offer_doctor_search</action>`
-
-    **Output:**
-    ```json
-    {{
-        "response": "I understand your financial concern...",
-        "symptoms": [],
-        "programme_trigger": true,
-        "doctor_trigger": false,
-        "shared_facts": [],
-        "shared_warnings": [],
-        "red_flags": [],
-        "symptom_research_result": {{ "summary": null }}
-    }}
-    ```
-    *(Note: `programme_trigger` is true due to "don't have any money").*
-    
-    ## Example 5: Research Result Parsing
-    **User:** (Silent - processing)
-    **Nora Response:** `<symptom_research_result>Symptoms align with Gastritis.</symptom_research_result>`
-    
-    **Output:**
-    ```json
-    {{
-        "response": "...",
-        "symptoms": [],
-        "programme_trigger": false,
-        "doctor_trigger": false,
-        "shared_facts": [],
-        "shared_warnings": [],
-        "red_flags": [],
-        "symptom_research_result": {{ "summary": "Symptoms align with Gastritis." }}
-    }}
-    ```
-    """
-
+        **Output:**
+        ```json
+        {{
+            "response": "I understand your financial concern...",
+            "symptoms": [],
+            "programme_trigger": true,
+            "doctor_trigger": false,
+            "shared_facts": ["Financial constraint"],
+            "shared_warnings": [],
+            "red_flags": [],
+            "symptom_research_result": {{ "summary": null }},
+            "disease_name": "No Disease"
+        }}
+        ```
+        """
         try:
             struct_system_message = [HumanMessage(content=structured_prompt)] 
             structured_llm = self.llm.with_structured_output(
@@ -295,17 +285,18 @@ class SymptomAgentNode(Node):
         shared_warnings = parsed.get("shared_warnings", [])
         red_flags = parsed.get("red_flags", [])
         symptom_research_result = parsed.get("symptom_research_result", {})
-        
+        disease_name = parsed.get("disease_name", "No Disease")
 
         logger.info(f"SYMPTOM TRIGGERS-----------: \nPROGRAM: {programme_trigger}\nDOCTOR: {doctor_trigger}")
 
-        if programme_trigger == True or programme_trigger == "True":
+        if programme_trigger == True: 
             delta["current_agent"] = "programme_eligibility_agent"
                   
         
-        if doctor_trigger == True or doctor_trigger == "True":
+        if doctor_trigger == True: 
             delta["current_agent"] = "doctor_agent"
         
+        delta["disease_name"] = disease_name
         delta["shared_facts"] = shared_facts
         delta["shared_warnings"] = shared_warnings
         delta["red_flags"] = red_flags
