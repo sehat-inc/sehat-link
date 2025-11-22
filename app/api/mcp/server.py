@@ -103,7 +103,7 @@ mcp.tool(
     
     NAMESPACE SELECTION GUIDE:
     - USE '__default__' for symptom/medical retrieval
-    - USE 'doctor-namespace' for doctor related retrieval
+    - USE 'dcotor-namespace' for doctor related retrieval
 
     FILTERING (All use OR logic):
     - Specialty filter: Matches ANY of the provided specialties

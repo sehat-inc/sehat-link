@@ -117,7 +117,7 @@ class PineconeQuery:
                 Pinecone namespace to query. Choose based on topic.
                 - '__default__' for symptom/medical related queries
                 - 'eligibility-namespace' for program/eligibility related queries
-                - 'doctor-namespace' for doctor related queries
+                - 'dcotor-namespace' for doctor related queries
                 """
             )
         ] = "__default__",
@@ -248,10 +248,10 @@ class PineconeQuery:
                 Pinecone namespace to query. Choose based on topic.
                 - '__default__' for symptom/medical related queries
                 - 'eligibility-namespace' for program/eligibility related queries
-                - 'doctor-namespace' for doctor related queries
+                - 'dcotor-namespace' for doctor related queries
                 """
             )
-        ] = "doctor-namespace",
+        ] = "dcotor-namespace",
         decompose: Annotated[bool, Field(description="Whether to decompose the question into multiple queries")] = True,
         specialties: Annotated[
             Optional[List[str]], 
@@ -305,10 +305,14 @@ class PineconeQuery:
         # Build metadata filters
         metadata_filters = {}
         
+        if ctx:
+            await ctx.info(f"Running Doctor Tool")
+
         if specialties and len(specialties) > 0:
             metadata_filters["specialty"] = specialties
             if ctx:
                 await ctx.info(f"Filtering by specialties: {', '.join(specialties)}")
+        
         
         if cities and len(cities) > 0:
             metadata_filters["city"] = cities
