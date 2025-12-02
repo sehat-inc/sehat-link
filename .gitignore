@@ -5,7 +5,7 @@ tests/
 test.py
 scripts/
 notes.md
-
+.vscode
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

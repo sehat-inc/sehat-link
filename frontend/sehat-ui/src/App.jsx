@@ -13,6 +13,7 @@ function App() {
   const [socket, setSocket] = useState(null);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
+  const [selectedImage, setSelectedImage] = useState(null);
 
   // Signup handler
   const handleSignup = async () => {
@@ -62,7 +63,7 @@ function App() {
         });
         setSessionId(res.data.session_id);
         setUserId(res.data.user_id);
-        
+
         console.log("FROM FRONTEND\nSession:", res.data.session_id, "User ID:", res.data.user_id);
 
         // Open websocket connection
@@ -71,31 +72,31 @@ function App() {
         ws.onmessage = (e) => {
           const data = JSON.parse(e.data);
           if (data.response) {
-            setMessages((prev) => [...prev, { from: "agent", type: "normal", text: data.response}]);
+            setMessages((prev) => [...prev, { from: "agent", type: "normal", text: data.response }]);
           } else if (data.message) {
-              setMessages((prev) => [...prev, { from: "agent", type: "normal", text: data.message }]);
+            setMessages((prev) => [...prev, { from: "agent", type: "normal", text: data.message }]);
           }
-          
+
           if (data.bridge_messages && Array.isArray(data.bridge_messages)) {
-              data.bridge_messages.forEach((bm) => {
-                  const text = bm.content || bm;
-                  setMessages((prev) => [...prev, { from: "agent", type: "extra", text }]);
-              });
+            data.bridge_messages.forEach((bm) => {
+              const text = bm.content || bm;
+              setMessages((prev) => [...prev, { from: "agent", type: "extra", text }]);
+            });
           } else if (data.extra_response) {
             setMessages((prev) => [...prev, { from: "agent", type: "extra", text: data.extra_response }]);
           }
         };
-        
+
         ws.onerror = (error) => {
-        console.error("WebSocket error:", error);
+          console.error("WebSocket error:", error);
         };
-      
+
         ws.onclose = () => {
           console.log("WebSocket disconnected");
         };
-        
+
         setSocket(ws);
-      
+
       } catch (err) {
         console.error(err);
         alert("Failed to start chat session");
@@ -105,16 +106,37 @@ function App() {
     startChat();
   }, [token]);
 
+  // Handle image selection
+  const handleImageSelect = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setSelectedImage(reader.result); // base64 string
+    };
+    reader.readAsDataURL(file);
+  };
+
   // Send chat message
   const sendMessage = () => {
-    if (!input || !socket || socket.readyState !== WebSocket.OPEN) return;
+    if ((!input && !selectedImage) || !socket || socket.readyState !== WebSocket.OPEN) return;
 
-    const payload = { message: input, user_id: userId };
-    
+    const payload = {
+      message: input || "Analyze this image",
+      user_id: userId
+    };
+
+    if (selectedImage) {
+      payload.image = selectedImage;
+    }
+
     socket.send(JSON.stringify(payload));
 
-    setMessages((prev) => [...prev, { from: "user", text: input }]);
+    const displayText = selectedImage ? `${input || "Analyze this image"} [Image attached]` : input;
+    setMessages((prev) => [...prev, { from: "user", text: displayText }]);
     setInput("");
+    setSelectedImage(null);
   };
 
   // Render signup/login form if not logged in
@@ -177,11 +199,11 @@ function App() {
         }}
       >
         {messages.map((m, i) => (
-          <div key={i} 
+          <div key={i}
             className={
-                m.type == "extra"
-                    ? "text-left my-2 text-gray-500 italic"
-                    : "text-left my-2"
+              m.type == "extra"
+                ? "text-left my-2 text-gray-500 italic"
+                : "text-left my-2"
 
             }>
             <b>{m.from}:</b> {m.text}
@@ -189,13 +211,26 @@ function App() {
         ))}
       </div>
 
-      <input
-        value={input}
-        onChange={(e) => setInput(e.target.value)}
-        onKeyDown={(e) => e.key === "Enter" && sendMessage()}
-        style={{ marginRight: 10 }}
-      />
-      <button onClick={sendMessage}>Send</button>
+      <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+        <input
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+          placeholder="Type message..."
+          style={{ flex: 1 }}
+        />
+        <input
+          type="file"
+          accept="image/*"
+          onChange={handleImageSelect}
+          style={{ display: "none" }}
+          id="image-upload"
+        />
+        <label htmlFor="image-upload" style={{ cursor: "pointer", padding: "5px 10px", border: "1px solid #ccc", borderRadius: 4 }}>
+          📎 {selectedImage ? "✓" : "Image"}
+        </label>
+        <button onClick={sendMessage}>Send</button>
+      </div>
     </div>
   );
 }

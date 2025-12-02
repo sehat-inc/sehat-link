@@ -6,11 +6,11 @@ frontend:
 	cd frontend/sehat-ui && npm run dev
 
 server:
-	docker exec $(REDIS_CONTAINER) redis-cli FLUSHALL
+	sudo docker exec $(REDIS_CONTAINER) redis-cli FLUSHALL
 	cd app && uvicorn main:combined_app --reload --port 8000
 
 all:
-	docker exec $(REDIS_CONTAINER) redis-cli FLUSHALL
+	sudo docker exec $(REDIS_CONTAINER) redis-cli FLUSHALL
 	make -j2 frontend server
 
 clean:
