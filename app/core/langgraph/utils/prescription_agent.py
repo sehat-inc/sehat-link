@@ -94,9 +94,18 @@ class PrescriptionAgent(Node):
                 # fall back silently
                 pass
 
-        delta: Dict[str, Any] = {}
+        if parsed["medications"]:
+            med_list = "\n".join([
+                f"- {m.get('name', 'Unknown')} ({m.get('dose', 'N/A')}, {m.get('frequency', 'N/A')}, {m.get('duration', 'N/A')})"
+                for m in parsed["medications"]
+            ])
+            response_msg = f"I've extracted these medications from your prescription:\n{med_list}"
+        else:
+            response_msg = "I couldnt extract any medications from this image. Please ensure its a clear prescription photo."
 
-        # Write final cleaned prescription result
-        delta["prescription_data"] = parsed
-
-        return delta
+        return {
+            "prescription_data": parsed,
+            "prescription_processed": True,
+            "messsages": [AIMessage(content=response_msg)],
+            "user_messages": [AIMessage(content=response_msg)]
+        }

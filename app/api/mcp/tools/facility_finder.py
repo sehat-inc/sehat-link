@@ -12,16 +12,17 @@ class FacilityFinder:
     def __init__(self, gmaps_api_key: str, supabase_url: str, supabase_key: str, table_name: str = "patient_locations"):
         self.gmaps = googlemaps.Client(key=gmaps_api_key)
         self.supabase: Client = create_client(supabase_url, supabase_key)
-        self.table_name = table_name
+        self.table_name = "patient_locations"
 
     def _get_coordinates_from_supabase(self, user_id: str) -> Optional[tuple[float, float]]:
         """
         Fetches latitude and longitude from the Supabase table for a specific user.
         """
+        table_name = "patient_locations"
         try:
-            response = self.supabase.table(self.table_name)\
+            response = self.supabase.table(table_name)\
                 .select("latitude, longitude")\
-                .eq("id", user_id)\
+                .eq("patient_id", user_id)\
                 .execute()
 
             if response.data and len(response.data) > 0:
@@ -54,7 +55,8 @@ class FacilityFinder:
         coords = self._get_coordinates_from_supabase(user_id)
         
         if not coords:
-            error_msg = f"Could not find coordinates for user {user_id} in table '{self.table_name}'."
+
+            error_msg = f"Could not find coordinates for user {user_id} in table 'patient_locations'."
             if ctx: await ctx.warning(error_msg)
             return {"error": error_msg, "status": "location_not_found"}
 

@@ -11,7 +11,7 @@ from core.logging import get_logger
 
 load_dotenv()
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379")
-NODE_BACKEND_URL = os.getenv("NODE_BACKEND_URL", "https://13.232.77.201.nip.io")
+NODE_BACKEND_URL = os.getenv("NODE_BACKEND_URL", "http://13.232.77.201:3000")
 
 logger = get_logger("APPOINTMENT BOOKING ROUTER")
 
@@ -168,7 +168,7 @@ async def trigger_call_to_node_backend(
         "patientName": patient_name,
         "symptoms": symptoms
     }
-    logger.info(f"payload {payload}")
+
     async with httpx.AsyncClient(timeout=10.0) as client:
         try:
             response = await client.post(endpoint, json=payload)
@@ -231,7 +231,7 @@ async def initiate_appointment(request: InitiateAppointmentRequest):
         doctor_id=str(selected_doctor["id"]),
         doctor_name=selected_doctor["name"],
         patient_id=str(state["user_id"]),
-        patient_name=str(state.get("user_name", "patient")),
+    _name", f"Patient {state['user_id']}"),
         symptoms=symptoms_str
     )
 
@@ -246,4 +246,3 @@ async def initiate_appointment(request: InitiateAppointmentRequest):
         },
         "message": f"Call initiated with Dr. {selected_doctor['name']}"
     }
-	

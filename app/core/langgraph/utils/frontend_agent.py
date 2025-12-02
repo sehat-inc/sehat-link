@@ -1,21 +1,17 @@
-from typing import Dict, Any, Union, AsyncGenerator
 import json
+import re
+
 from langsmith import traceable
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
-from typing_extensions import TypedDict
 from pydantic import BaseModel, Field
 from langchain_mcp_adapters.client import MultiServerMCPClient
 
+from core.langgraph.utils.tool_manager import MCPClientPool
 from core.langgraph.utils.base_node import Node
 from core.langgraph.utils.state import MedicalAgentState
-from core.langgraph.utils.helper import safe_str
+from core.langgraph.utils.helper import extract_llm_content, extract_user_message
 from core.prompts.mcp_client_prompts import frontend_agent_prompt
 from core.logging import get_logger
-from core.langgraph.utils.helper import (
-    safe_str
-)
-import re
-import json
 
 
 class FrontendFeedback(BaseModel):
@@ -49,22 +45,14 @@ class TriageAgent(Node):
         """
         delta = {}
         
-        client = MultiServerMCPClient({
-            "sehat-link": {
-                "transport": "streamable_http",
-                "url": "http://localhost:8000/mcp",
-            }
-        })
+        
+        pool = await MCPClientPool.get_instance()
 
-        # Bind Tools with Model (VERY IMPORTANT)
-        tools = await client.get_tools()
+        
+        filtered_tools = await pool.get_tools(self.ALLOWED_TOOLS)
 
-        filtered_tools = [
-            tool for tool in tools
-            if tool.name in self.ALLOWED_TOOLS
-        ]
 
-        logger.info(f"Allowed Tools for Program: {[t.name for t in filtered_tools]}")
+        logger.info(f"Allowed Tools for Triage: {[t.name for t in filtered_tools]}")
         
         model_with_tools = self.llm.bind_tools(filtered_tools)
         
@@ -82,8 +70,9 @@ class TriageAgent(Node):
     
         logger.info(f"First LLM: {llm_response}")
 
-        # Last User Message 
-        last_user_msg = messages[-1].content if messages else ""
+        # Extract clean content from LLM response and user message
+        last_user_msg = extract_user_message(messages)
+        agent_response_text = extract_llm_content(llm_response)
         
         routing_prompt = f"""
         # ROLE: Backend Logic Parser & Router
@@ -92,7 +81,7 @@ class TriageAgent(Node):
 
         # INPUT DATA
         **USER'S LAST MESSAGE:** "{last_user_msg}"
-        **ASSISTANT'S RAW RESPONSE:** "{llm_response}"
+        **ASSISTANT'S RAW RESPONSE:** "{agent_response_text}"
 
         # 1. RESPONSE EXTRACTION RULE
         - Extract the **clean conversational text** spoken by the assistant.
@@ -169,18 +158,33 @@ class TriageAgent(Node):
             
             logger.info(f"SECOND LLM RESPONSE: {response}")
             
+            # Handle case where response is a string (JSON) instead of dict
+            if isinstance(response, str):
+                # Try to extract JSON from the string
+                json_match = re.search(r'\{[^{}]*\}', response, re.DOTALL)
+                if json_match:
+                    response = json.loads(json_match.group())
+                else:
+                    response = json.loads(response)
+            
         except Exception as e:
-            print(f"Frontend Error: {e}")
-            response = "I'm sorry, I encountered a technical issue. Could you please repeat that?"
+            logger.error(f"Frontend Error: {e}")
+            # Return a default response dict on error
+            response = {
+                "response": "I'm sorry, I encountered a technical issue. Could you please repeat that?",
+                "symptom_trigger": False,
+                "programme_trigger": False,
+                "doctor_trigger": False
+            }
     
 
-        symptom_trigger = response["symptom_trigger"] 
-        programme_trigger = response["programme_trigger"] 
-        doctor_trigger = response["doctor_trigger"] 
+        symptom_trigger = response.get("symptom_trigger", False) 
+        programme_trigger = response.get("programme_trigger", False) 
+        doctor_trigger = response.get("doctor_trigger", False) 
         logger.info(f"TRIAGE TRIGGERS-----------\nSYMPTOM: {symptom_trigger}\nPROGRAM: {programme_trigger}\nDOCTOR: {doctor_trigger}")
        
 
-        response_text = response["response"]
+        response_text = response.get("response", "")
         
         if symptom_trigger == True: 
             delta["current_agent"] = "symptom_agent"
@@ -203,8 +207,8 @@ class TriageAgent(Node):
         has_tool_calls = hasattr(llm_response, 'tool_calls') and len(llm_response.tool_calls)
 
         if has_tool_calls:
-            delta["messages"] = [llm_response]
-            delta["user_messages"] = [llm_response]
+            delta["messages"] = [llm_response] 
+            delta["user_messages"] = [response_text]
         else:
             delta["messages"] = [llm_response]
             delta["user_messages"] = [

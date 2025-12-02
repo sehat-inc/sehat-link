@@ -7,10 +7,6 @@ pydantic
 # LLM Providers
 openai>=1.0.0  # For OpenAI GPT-4o-mini
 
-# Local Embeddings & Vector Search (Optional but Recommended)
-onnxruntime>=1.16.0  # ONNX inference
-tokenizers>=0.15.0  # Fast tokenization
-faiss-cpu>=1.7.0  # Vector search
-
 # Optional: Local LLM support
+# Uncomment if using local models
 # ollama>=0.1.0

@@ -1,11 +1,14 @@
 from typing import Dict, Any, Optional, Union, AsyncGenerator, List
+import re
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langchain_mcp_adapters.client import MultiServerMCPClient
 from langsmith import traceable
 from pydantic import BaseModel, Field
+from core.langgraph.utils.tool_manager import MCPClientPool
 
 from core.langgraph.utils.base_node import Node
 from core.langgraph.utils.state import MedicalAgentState
+from core.langgraph.utils.helper import extract_llm_content, extract_user_message
 from core.prompts.mcp_client_prompts import program_eligibility_agent_prompt
 from core.langgraph.utils.tool_manager import MCPToolManager
 from core.logging import get_logger
@@ -45,22 +48,15 @@ class ProgrammeEligibilityNode(Node):
     async def run(self, state: MedicalAgentState):
         """Main node execution"""
         
-        client = MultiServerMCPClient({
-            "sehat-link": {
-                "transport": "streamable_http",
-                "url": "http://localhost:8000/mcp",
-            }
-        })
 
 
         delta = {}
 
-        tools = await client.get_tools()
+        pool = await MCPClientPool.get_instance()
 
-        filtered_tools = [
-            tool for tool in tools
-            if tool.name in self.ALLOWED_TOOLS
-        ]
+        
+        filtered_tools = await pool.get_tools(self.ALLOWED_TOOLS)
+
 
         logger.info(f"Allowed Tools for Programme: {[t.name for t in filtered_tools]}")
 
@@ -87,7 +83,9 @@ class ProgrammeEligibilityNode(Node):
             logger.error(f"Failed in Getting LLM TOOL Response: {e}")
             tool_llm_response = "Due to technical issues could you please repeat that..."
 
-        last_user_msg = messages[-1].content if messages else ""
+        # Extract clean content from LLM response and user message
+        last_user_msg = extract_user_message(messages)
+        agent_response_text = extract_llm_content(tool_llm_response)
         
         structured_prompt = f"""
         # ROLE: Conversation Parser & Router
@@ -96,7 +94,7 @@ class ProgrammeEligibilityNode(Node):
 
         # INPUT CONTEXT
         **User's Last Message:** "{last_user_msg}"
-        **Iris's (Agent) Response:** "{tool_llm_response}"
+        **Iris's (Agent) Response:** "{agent_response_text}"
 
         # OBJECTIVE
         Generate a valid JSON object matching the `ProgramFeedbackAgent` schema based on the analysis below.
@@ -215,12 +213,39 @@ class ProgrammeEligibilityNode(Node):
             delta["messages"] = []   # no tool routing in error case
             return delta
 
+        # Handle None response from structured LLM
+        if response is None:
+            logger.warning("Structured LLM returned None, using fallback response")
+            # Extract response from tool_llm_response if available
+            fallback_text = "I'm processing your request. Could you please provide more details?"
+            if hasattr(tool_llm_response, 'content'):
+                content = tool_llm_response.content
+                if isinstance(content, str):
+                    fallback_text = content
+                elif isinstance(content, list) and len(content) > 0:
+                    first_item = content[0]
+                    if isinstance(first_item, dict) and 'text' in first_item:
+                        # Extract text and clean XML tags
+                        import re
+                        raw_text = first_item.get('text', '')
+                        # Remove XML tags
+                        clean_text = re.sub(r'<[^>]+>', '', raw_text).strip()
+                        if clean_text:
+                            fallback_text = clean_text
+            
+            delta["user_messages"] = [AIMessage(content=fallback_text)]
+            delta["messages"] = [tool_llm_response] if hasattr(tool_llm_response, 'content') else []
+            return delta
+
         if isinstance(response, BaseModel):
-                parsed = response.dict()
+            parsed = response.dict()
         elif isinstance(response, dict):
             parsed = response
         else:
-            raise ValueError(f"Unexpected response type: {type(response)} | {response}")
+            logger.error(f"Unexpected response type: {type(response)} | {response}")
+            delta["user_messages"] = [AIMessage(content="Could you please repeat that again?")]
+            delta["messages"] = []
+            return delta
         
         response_text = parsed.get("response", "")
         symptom_trigger = parsed.get("symptom_trigger", False)

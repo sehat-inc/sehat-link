@@ -2,7 +2,7 @@
 
 ## Overview
 
-Degraded mode provides offline resilience when main services are unavailable. It operates independently with:
+Degraded mode provides 10% offline resilience when main services are unavailable. It operates independently with:
 
 - **No authentication required** - Public access
 - **No Redis/Database dependencies** - Fully offline capable
@@ -76,10 +76,6 @@ DEGRADED_OPENAI_MODEL=gpt-4o-mini
 DEGRADED_LLM_PROVIDER=local
 DEGRADED_LOCAL_MODEL=phi3:mini
 OLLAMA_BASE_URL=http://localhost:11434
-
-DEGRADED_USE_EMBEDDINGS=true
-DEGRADED_USE_PROMPT_CACHING=true
-
 ```
 
 ### Switching to Local LLM

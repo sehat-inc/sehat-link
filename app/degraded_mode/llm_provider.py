@@ -25,13 +25,12 @@ class LLMProvider(ABC):
 
 
 class OpenAIProvider(LLMProvider):
-    """OpenAI GPT-4o-mini provider with prompt caching"""
+    """OpenAI GPT-4o-mini provider"""
     
     def __init__(self, api_key: Optional[str] = None, model: str = "gpt-4o-mini"):
         self.api_key = api_key or os.getenv("OPENAI_API_KEY")
         self.model = model
         self.client = AsyncOpenAI(api_key=self.api_key)
-        self.use_caching = os.getenv("DEGRADED_USE_PROMPT_CACHING", "true").lower() == "true"
     
     async def generate(
         self,
@@ -39,21 +38,13 @@ class OpenAIProvider(LLMProvider):
         temperature: float = 0.7,
         max_tokens: int = 500
     ) -> str:
-        """Generate response using OpenAI API with prompt caching"""
+        """Generate response using OpenAI API"""
         try:
-            # Enable prompt caching by marking system message
-            if self.use_caching and len(messages) > 0:
-                # Mark first message (system prompt) for caching
-                # OpenAI caches based on message prefix matching
-                pass  # Automatic in newer API versions
-            
             response = await self.client.chat.completions.create(
                 model=self.model,
                 messages=messages,
                 temperature=temperature,
-                max_tokens=max_tokens,
-                # Add seed for consistent caching
-                seed=42 if self.use_caching else None
+                max_tokens=max_tokens
             )
             return response.choices[0].message.content
         except Exception as e:

@@ -151,32 +151,28 @@ async def load_initial_state_from_db(user_id: int) -> MedicalAgentState:
         # LLM-Detected Context
         "detected_language": safe_str(row.get("detected_language", "en")),
         "detected_urgency": row.get("detected_urgency", "Medium"),
-        "detected_problem_type": safe_str(row.get("detected_problem_type", "")), 
 
         # Symptoms
-        "symptom_trigger": False,
         "symptoms_collected": safe_list(row.get("symptoms_collected"), []),
-        "symptoms_summary": safe_str(row.get("symptoms_summary")),
 
         # MCP Tool Results
-        "symptom_research_result": safe_list(row.get("symptom_research_result")),
-        "similar_cases": safe_list(row.get("similar_cases"), []),
+        "symptom_research_result": safe_str(row.get("symptom_research_result")),
 
-        # Agent Coordination
-        "current_agent": [],
-        "previous_agent": "",
-        "handoff_context": "",
-
-        # Agent Flags
-        "triage_complete": safe_bool(row.get("triage_complete"), False),
-        "sufficient_symptom_data": safe_bool(row.get("sufficient_symptom_data"), False),
-        "requires_deep_research": safe_bool(row.get("requires_deep_research"), False),
-
+        
         # Shared Knowledge
         "shared_facts": safe_list(row.get("shared_facts"), []),
         "shared_warnings": safe_list(row.get("shared_warnings"), []),
         "red_flags": safe_list(row.get("red_flags"), []),
 
+        # Prescription
+        "prescription_data": safe_list(row.get("prescription_data"), []),
+        
+        # Programs
+        "sehat_sahulat_program_eligibility": safe_str(row.get("sehat_sahulat_program_eligibility", "")),
+        "baitul_maal_program_eligibility": safe_str(row.get("baitul_maal_program_eligibility", "")),
+
+        # Disease
+        "disease_name" : safe_str(row.get("disease_name", "")),
     }
     
     return state

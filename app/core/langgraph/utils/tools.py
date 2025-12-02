@@ -1,6 +1,6 @@
 from langchain_mcp_adapters.client import MultiServerMCPClient
 from core.langgraph.utils.state import MedicalAgentState
-from core.langgraph.utils.tool_manager import MCPToolManager
+from core.langgraph.utils.tool_manager import MCPToolManager, MCPClientPool
 
 from core.logging import get_logger
 
@@ -20,18 +20,11 @@ async def mcp_tool_node(state: MedicalAgentState):
 
     # Setup MCP
 
-    client = MultiServerMCPClient({
-        "sehat-link": {
-            "transport": "streamable_http",
-            "url": "http://localhost:8000/mcp",
-        }
-    })
+    pool = await MCPClientPool.get_instance()
 
-    executor = MCPToolManager(client)
-    await executor.initialize()
 
     # Execute all Tools Calls
-    tool_messages = await executor.execute_tool_calls(last_message.tool_calls)
+    tool_messages = await pool.execute_tool_calls(last_message.tool_calls)
     
     logger.info(f"TOOL RESPONSE: {tool_messages}")
     

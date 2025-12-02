@@ -138,16 +138,13 @@ class MedicalAgentState(TypedDict):
     # LLM-Detected Context (updated by detector nodes)
     detected_language: str  # LLM detection result
     detected_urgency: Literal["Emergency", "High", "Medium", "Low"]  # LLM detection
-    detected_problem_type: str
+    urgency_checked: bool  # Flag to ensure urgency is only checked once
     
     # Symptoms (LLM-extracted from conversation)
     symptom_trigger: bool
     symptom_init: bool
     symptoms_collected: Annotated[list, merge_symptoms]  # [{symptom, severity, duration, location}]
-    symptoms_summary: str  # Natural language summary
     symptom_route: str
-
-    # MCP Tool Results
     symptom_research_result: Optional[str]  # From MCP deep research tool
     
     # Program
@@ -177,6 +174,7 @@ class MedicalAgentState(TypedDict):
 
     # prescription
     prescription_data: Optional[Dict[str, Any]]
+    prescription_processed: Optional[bool]
 
     # disease
     disease_name: Optional[str]

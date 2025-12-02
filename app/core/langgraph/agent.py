@@ -32,8 +32,6 @@ def start_router(state: MedicalAgentState) -> Literal["symptom", "triage", "doct
                         return "prescription"
             break
 
-
-
     curr = state.get("current_agent", "__default__")
     logger.info(f"CURRENT AGENT: {curr}")
 
@@ -51,9 +49,10 @@ def start_router(state: MedicalAgentState) -> Literal["symptom", "triage", "doct
     return "triage"
     
 
-def should_continue_symptom(state: MedicalAgentState) -> Literal["tools", "max_iterations", "program", "doctor", "__end__"]:
+def should_continue_symptom(state: MedicalAgentState) -> Literal["tools", "max_iterations", "urgency"]:
     """
-    Enhanced conditional edge with max iteration check
+    Enhanced conditional edge with max iteration check.
+    All handoffs from symptom now go through urgency node first.
     """
     messages = state["messages"]
     last_message = messages[-1]
@@ -68,21 +67,33 @@ def should_continue_symptom(state: MedicalAgentState) -> Literal["tools", "max_i
     # Check for errors
     if state.get("error_count", 0) >= 3:
         logger.error("Too many errors, ending execution")
-        return "__end__"
+        return "urgency"  # Still go through urgency to set state
     
     # Check if LLM wants to call tools
     if hasattr(last_message, "tool_calls") and last_message.tool_calls:
         logger.info("RETURNING TOOL")
         return "tools"
 
-    if state.get("current_agent") == "programme_eligibility_agent":
-        logger.info("Handoff to Program Eligibility Agent")
+    # All exits from symptom agent go through urgency node
+    # Urgency node will check if it should run or skip (urgency_checked flag)
+    return "urgency"
+
+
+def route_after_urgency(state: MedicalAgentState) -> Literal["program", "doctor", "__end__"]:
+    """
+    Route to appropriate agent after urgency check is complete.
+    """
+    current_agent = state.get("current_agent", "")
+    
+    if current_agent == "programme_eligibility_agent":
+        logger.info("Post-urgency: Routing to Program Eligibility Agent")
         return "program"
     
-    if state.get("current_agent") == "doctor_agent":
-        logger.info("Handoff to Doctor Agent")
+    if current_agent == "doctor_agent":
+        logger.info("Post-urgency: Routing to Doctor Agent")
         return "doctor"
     
+    logger.info("Post-urgency: Ending conversation")
     return "__end__"
 
 def should_continue_program(state: MedicalAgentState) -> Literal["tools", "symptom", "doctor",  "__end__"]:
@@ -190,7 +201,7 @@ def build_triage_agent():
 
     graph.add_node("triage", triage.run)
     graph.add_node("symptom", symptom.run)
-    graph.add_node("language", language)
+    graph.add_node("language", language.run)
     graph.add_node("program", program.run)
     graph.add_node("urgency", urgency.run)
     graph.add_node("doctor", doctor.run)
@@ -232,10 +243,19 @@ def build_triage_agent():
         should_continue_symptom,
         {
             "tools": "symptom_tools",
+            "max_iterations": "max_iterations",
+            "urgency": "urgency"
+        }
+    )
+    
+    # Route after urgency check to appropriate agent or end
+    graph.add_conditional_edges(
+        "urgency",
+        route_after_urgency,
+        {
             "program": "program",
             "doctor": "doctor",
-            "max_iterations": "max_iterations",
-            "__end__": "urgency"
+            "__end__": END
         }
     )
     
@@ -268,6 +288,5 @@ def build_triage_agent():
     graph.add_edge("program_tools", "program")
     graph.add_edge("doctor_tools", "doctor")
     graph.add_edge("max_iterations", END)
-    graph.add_edge("urgency", END)
 
     return graph

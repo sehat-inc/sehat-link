@@ -107,7 +107,7 @@ async def save_state_to_longterm_session(user_id: int, state: Dict[str, Any]):
         "user_age": state.get("user_age"),
         "user_gender": state.get("user_gender"),
         "user_phone": state.get("user_phone"),
-        "preferred_language": state.get("preferred_language", "en"),
+        "preferred_language": state.get("preferred_language", "English"),
         "user_location": state.get("user_location"),
         "user_domicile_location": state.get("user_domicile_location"),
         
@@ -118,22 +118,28 @@ async def save_state_to_longterm_session(user_id: int, state: Dict[str, Any]):
         
         # Detected context
         "detected_urgency": state.get("detected_urgency"),
-        "detected_problem_type": state.get("detected_problem_type"),
-        
+        "detected_language": state.get("detected_language", "English"),
+
         # Symptoms
         "symptoms_collected": state.get("symptoms_collected", []),
-        "symptoms_summary": state.get("symptoms_summary"),
         
         # Research results
-        "symptom_research_result": state.get("symptom_research_result", []),
+        "symptom_research_result": state.get("symptom_research_result", ""), 
         
+        # Program
+        "sehat_sahulat_program_eligibility": state.get("sehat_sahulat_program_eligibility", ""),
+        "baitul_maal_program_eligibility": state.get("baitul_maal_program_eligibility", ""),
+
+        # Disease
+        "disease_name" : state.get("disease_name", ""),
+
         # Shared knowledge
         "shared_facts": state.get("shared_facts", []),
         "shared_warnings": state.get("shared_warnings", []),
         "red_flags": state.get("red_flags", []),
         
         # Prescription
-        "prescription_data": state.get("prescription_data")
+        "prescription_data": state.get("prescription_data", {}),
     }
     
     # Remove None values to avoid overwriting with null

@@ -7,8 +7,6 @@ Lightweight agent that:
 3. No complex LangGraph workflow
 """
 
-import os
-from pathlib import Path
 from typing import List, Dict, Optional
 from .knowledge_base import knowledge_base
 from .llm_provider import get_llm_provider
@@ -25,14 +23,6 @@ class DegradedAgent:
         self.kb = knowledge_base
         self.llm = get_llm_provider()
         self.system_prompt = self._build_system_prompt()
-        
-        # Local embeddings for semantic search
-        self.use_embeddings = os.getenv("DEGRADED_USE_EMBEDDINGS", "false").lower() == "true"
-        self.embedder = None
-        self.vector_store = None
-        
-        if self.use_embeddings:
-            self._init_embeddings()
     
     def _build_system_prompt(self) -> str:
         """Build system prompt with knowledge base context"""
@@ -58,32 +48,6 @@ When answering:
 5. Always output a string. No markdown no extra characters.
 
 Be helpful, empathetic, and safety-conscious."""
-    
-    def _init_embeddings(self):
-        """Initialize local embeddings and vector store"""
-        try:
-            from .local_embeddings import LocalEmbeddings, FAISSVectorStore, build_knowledge_index
-            
-            index_path = Path(__file__).parent / "knowledge" / "vector_index"
-            
-            # Try to load existing index
-            if index_path.with_suffix('.index').exists():
-                logger.info("Loading existing vector index...")
-                self.embedder = LocalEmbeddings()
-                self.vector_store = FAISSVectorStore()
-                self.vector_store.load(str(index_path))
-                logger.info("Vector index loaded successfully")
-            else:
-                # Build new index
-                logger.info("Building vector index from knowledge base...")
-                self.embedder, self.vector_store = build_knowledge_index(
-                    self.kb, 
-                    save_path=str(index_path)
-                )
-                logger.info("Vector index built and saved")
-        except Exception as e:
-            logger.warning(f"Failed to initialize embeddings: {e}. Falling back to keyword search.")
-            self.use_embeddings = False
     
     async def process_message(
         self,
@@ -142,27 +106,10 @@ Be helpful, empathetic, and safety-conscious."""
     
     def _search_knowledge(self, query: str) -> Dict:
         """Search all knowledge bases"""
-        results = {}
-        
-        # Use semantic search if available
-        if self.use_embeddings and self.embedder and self.vector_store:
-            try:
-                query_embedding = self.embedder.embed_text(query)
-                semantic_results = self.vector_store.search(query_embedding, k=5)
-                
-                # Group by type
-                for result in semantic_results:
-                    result_type = result["metadata"]["type"]
-                    if result_type not in results:
-                        results[result_type] = []
-                    results[result_type].append(result["metadata"])
-                
-                logger.info(f"Semantic search found {len(semantic_results)} results")
-            except Exception as e:
-                logger.error(f"Semantic search failed: {e}, falling back to keyword")
-        
-        # Fallback to keyword search or supplement semantic results
+        # Detect query intent
         query_lower = query.lower()
+        
+        results = {}
         
         # Medical queries
         if any(word in query_lower for word in [
